@@ -50,11 +50,7 @@ function buildExportHTML(skus: SKU[]): HTMLDivElement {
     if (discount > 0) {
       const discountEl = document.createElement("div");
       discountEl.style.cssText = "font-size:12px;font-weight:700;color:#564ef5;";
-      let discountText = `${discount}% Off MSRP`;
-      if (sku.units) {
-        discountText += ` <span style="color:#6b7280;font-weight:400">| ${sku.units.toLocaleString()} Units</span>`;
-      }
-      discountEl.innerHTML = discountText;
+      discountEl.textContent = `${discount}% Off MSRP`;
       textWrap.appendChild(discountEl);
     }
 

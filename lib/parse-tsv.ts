@@ -14,9 +14,7 @@ export function parseTSV(text: string): SKU[] {
     const name = cols[0];
     const msrp = parsePrice(cols[1]);
     const offerPrice = parsePrice(cols[2]);
-    const units = cols[3] ? parseInt(cols[3], 10) || undefined : undefined;
-
-    skus.push(createSKU({ name, msrp, offerPrice, units }));
+    skus.push(createSKU({ name, msrp, offerPrice }));
   }
 
   return skus;

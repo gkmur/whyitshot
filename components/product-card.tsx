@@ -60,14 +60,6 @@ export function ProductCard({
             <div className="text-xs">
               <span className="text-accent font-bold">{discount}% Off</span>
               <span className="text-gray-400"> MSRP</span>
-              {sku.units && (
-                <>
-                  <span className="text-gray-300 mx-1">|</span>
-                  <span className="text-gray-500">
-                    {sku.units.toLocaleString()} Units
-                  </span>
-                </>
-              )}
             </div>
           )}
         </div>

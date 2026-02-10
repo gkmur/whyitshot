@@ -3,7 +3,6 @@ export interface SKU {
   name: string;
   msrp: number;
   offerPrice: number;
-  units?: number;
   imageUrl?: string;
   processedImage?: string;
   isProcessingImage?: boolean;

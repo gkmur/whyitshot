@@ -2,15 +2,14 @@ import { type SKU } from "@/types/sku";
 
 const STORAGE_KEY = "topskus:session" as const;
 
-function isValidSKU(v: unknown): v is { id: string; name: string; msrp: number; offerPrice: number; units?: number } {
+function isValidSKU(v: unknown): v is { id: string; name: string; msrp: number; offerPrice: number } {
   if (typeof v !== "object" || v === null) return false;
   const o = v as Record<string, unknown>;
   return (
     typeof o.id === "string" &&
     typeof o.name === "string" &&
     typeof o.msrp === "number" &&
-    typeof o.offerPrice === "number" &&
-    (o.units === undefined || typeof o.units === "number")
+    typeof o.offerPrice === "number"
   );
 }
 
@@ -43,7 +42,6 @@ export function loadSession(): SKU[] | null {
       name: s.name,
       msrp: s.msrp,
       offerPrice: s.offerPrice,
-      ...(s.units !== undefined ? { units: s.units } : {}),
     }));
   } catch {
     return null;

@@ -128,7 +128,7 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-12">
         {/* Data Input */}
         <div className="max-w-md mx-auto">
-          <DataInput onImport={handleImport} onAddSingle={handleAddSingle} />
+          <DataInput onImport={handleImport} onAddSingle={handleAddSingle} onUpdate={handleUpdate} bgRemovalEnabled={bgRemovalEnabled} />
         </div>
 
         {/* Card Preview (editable) */}
