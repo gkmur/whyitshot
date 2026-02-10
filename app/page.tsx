@@ -1,15 +1,21 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { type SKU, createSKU } from "@/types/sku";
 import { DataInput } from "@/components/data-input";
 import { CardGrid } from "@/components/card-grid";
 import { ExportControls } from "@/components/export-controls";
 import { removeBg } from "@/lib/remove-bg";
+import { loadSession } from "@/lib/storage";
+import { useAutosave } from "@/lib/use-autosave";
 
 export default function Home() {
-  const [skus, setSkus] = useState<SKU[]>([]);
+  const [skus, setSkus] = useState<SKU[]>(() => loadSession() ?? []);
   const [bgRemovalEnabled, setBgRemovalEnabled] = useState(true);
+  const [showUndo, setShowUndo] = useState(false);
+  const lastClearedRef = useRef<SKU[]>([]);
+
+  useAutosave(skus);
 
   const handleImport = useCallback((imported: SKU[]) => {
     setSkus((prev) => [...prev, ...imported]);
@@ -65,7 +71,26 @@ export default function Home() {
     setSkus((prev) => [...prev, createSKU({ name: "Untitled" })]);
   }, []);
 
-  const handleClear = () => setSkus([]);
+  const handleClear = () => {
+    lastClearedRef.current = skus;
+    setSkus([]);
+    setShowUndo(true);
+    setTimeout(() => setShowUndo(false), 5000);
+  };
+
+  const handleUndoClear = () => {
+    setSkus(lastClearedRef.current);
+    setShowUndo(false);
+  };
+
+  const handleReorder = useCallback((fromIndex: number, toIndex: number) => {
+    setSkus((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      return next;
+    });
+  }, []);
 
   return (
     <div className="min-h-screen">
@@ -77,14 +102,24 @@ export default function Home() {
             </h1>
             <p className="text-xs text-gray-400">Visual Generator</p>
           </div>
-          {skus.length > 0 && (
-            <button
-              onClick={handleClear}
-              className="text-xs text-gray-400 hover:text-red-500 transition-colors"
-            >
-              Clear all
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {showUndo && (
+              <button
+                onClick={handleUndoClear}
+                className="text-xs text-accent hover:text-accent-hover transition-colors font-medium"
+              >
+                Undo clear
+              </button>
+            )}
+            {skus.length > 0 && (
+              <button
+                onClick={handleClear}
+                className="text-xs text-gray-400 hover:text-red-500 transition-colors"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -122,6 +157,7 @@ export default function Home() {
                 onImageSelected={handleImageSelected}
                 onRemove={handleRemove}
                 onAddEmpty={handleAddEmpty}
+                onReorder={handleReorder}
               />
             </div>
           </section>

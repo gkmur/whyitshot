@@ -75,6 +75,11 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
               <p className="text-[11px] text-gray-400 mt-1">
                 Columns: Product Name, MSRP, Offer Price, Units (optional)
               </p>
+              {!pasteValue && (
+                <p className="text-[11px] text-gray-300 mt-0.5 font-mono">
+                  Example: Luka Duffel	$299	$167.44	800
+                </p>
+              )}
             </div>
             <button
               onClick={handleImport}

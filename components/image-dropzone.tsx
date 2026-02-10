@@ -14,6 +14,10 @@ export function ImageDropzone({
   onImageSelected,
 }: ImageDropzoneProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [showUrlInput, setShowUrlInput] = useState(false);
+  const [urlValue, setUrlValue] = useState("");
+  const [urlError, setUrlError] = useState("");
+  const [urlLoading, setUrlLoading] = useState(false);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -52,6 +56,32 @@ export function ImageDropzone({
     },
     [handleFile]
   );
+
+  const handleUrlSubmit = async () => {
+    if (!urlValue.trim()) return;
+    setUrlError("");
+    setUrlLoading(true);
+    try {
+      const response = await fetch(urlValue);
+      if (!response.ok) throw new Error("Failed to fetch");
+      const contentType = response.headers.get("content-type");
+      if (!contentType?.startsWith("image/")) throw new Error("Not an image");
+      const blob = await response.blob();
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          onImageSelected(reader.result);
+          setShowUrlInput(false);
+          setUrlValue("");
+        }
+      };
+      reader.readAsDataURL(blob);
+    } catch {
+      setUrlError("Couldn't load that URL. Try downloading the image and dragging it here.");
+    } finally {
+      setUrlLoading(false);
+    }
+  };
 
   if (isProcessing) {
     return (
@@ -101,48 +131,81 @@ export function ImageDropzone({
   }
 
   return (
-    <label
-      className={`aspect-square border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-        isDragging
-          ? "border-accent bg-accent-light"
-          : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
-      }`}
-      onDrop={handleDrop}
-      onDragOver={(e) => {
-        e.preventDefault();
-        setIsDragging(true);
-      }}
-      onDragLeave={() => setIsDragging(false)}
-      onPaste={handlePaste}
-      tabIndex={0}
-    >
-      <div className="text-center px-2">
-        <svg
-          className="w-6 h-6 mx-auto mb-1 text-gray-300"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.5}
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        <span className="text-[11px] text-gray-400 leading-tight block">
-          Drop image
-        </span>
-      </div>
-      <input
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
+    <div className="space-y-1">
+      <label
+        className={`aspect-square border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+          isDragging
+            ? "border-accent bg-accent-light"
+            : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
+        }`}
+        onDrop={handleDrop}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
         }}
-      />
-    </label>
+        onDragLeave={() => setIsDragging(false)}
+        onPaste={handlePaste}
+        tabIndex={0}
+      >
+        <div className="text-center px-2">
+          <svg
+            className="w-6 h-6 mx-auto mb-1 text-gray-300"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          <span className="text-[11px] text-gray-400 leading-tight block">
+            Drop image or click
+          </span>
+        </div>
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) handleFile(file);
+          }}
+        />
+      </label>
+      {!showUrlInput ? (
+        <button
+          onClick={() => setShowUrlInput(true)}
+          className="text-[10px] text-gray-300 hover:text-accent transition-colors w-full text-center"
+        >
+          or paste URL
+        </button>
+      ) : (
+        <div className="space-y-1">
+          <div className="flex gap-1">
+            <input
+              type="url"
+              value={urlValue}
+              onChange={(e) => { setUrlValue(e.target.value); setUrlError(""); }}
+              placeholder="https://..."
+              className="flex-1 text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-accent"
+              onKeyDown={(e) => { if (e.key === "Enter") handleUrlSubmit(); }}
+            />
+            <button
+              onClick={handleUrlSubmit}
+              disabled={urlLoading || !urlValue.trim()}
+              className="text-[10px] bg-accent text-white rounded px-2 py-1 disabled:opacity-40"
+            >
+              {urlLoading ? "..." : "Go"}
+            </button>
+          </div>
+          {urlError && (
+            <p className="text-[10px] text-red-400">{urlError}</p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
