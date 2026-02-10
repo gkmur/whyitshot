@@ -10,7 +10,7 @@ export function parseTSV(text: string): SKU[] {
     const cols = line.split("\t").map((c) => c.trim());
     if (cols.length === 0 || !cols[0]) continue;
 
-    // Try to parse: Name, MSRP, Offer Price, [Units]
+    // Try to parse: Name, MSRP, Offer Price
     const name = cols[0];
     const msrp = parsePrice(cols[1]);
     const offerPrice = parsePrice(cols[2]);

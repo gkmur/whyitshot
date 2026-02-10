@@ -81,7 +81,7 @@ export default function Home() {
   };
 
   const handleUndoClear = () => {
-    setSkus(lastClearedRef.current);
+    setSkus(lastClearedRef.current.map((s) => ({ ...s, isProcessingImage: false })));
     setShowUndo(false);
   };
 
