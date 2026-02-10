@@ -72,7 +72,7 @@ export default function Home() {
       <header className="border-b border-gray-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-bold text-gray-900 tracking-tight">
+            <h1 className="text-lg font-bold text-gray-900 tracking-tight font-[family-name:var(--font-sora)]">
               Top SKUs
             </h1>
             <p className="text-xs text-gray-400">Visual Generator</p>
@@ -88,7 +88,7 @@ export default function Home() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+      <main className="max-w-5xl mx-auto px-6 py-10 space-y-12">
         {/* Data Input */}
         <div className="max-w-md mx-auto">
           <DataInput onImport={handleImport} onAddSingle={handleAddSingle} />
@@ -109,13 +109,13 @@ export default function Home() {
                   type="checkbox"
                   checked={bgRemovalEnabled}
                   onChange={(e) => setBgRemovalEnabled(e.target.checked)}
-                  className="rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                  className="rounded border-gray-300 text-accent focus:ring-accent"
                 />
                 Auto-remove backgrounds
               </label>
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 p-8">
+            <div className="bg-white rounded-2xl border border-gray-200 p-8">
               <CardGrid
                 skus={skus}
                 onUpdate={handleUpdate}

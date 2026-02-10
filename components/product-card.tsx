@@ -40,7 +40,7 @@ export function ProductCard({
             type="text"
             value={sku.name}
             onChange={(e) => onUpdate(sku.id, { name: e.target.value })}
-            className="text-sm font-semibold text-center w-full bg-transparent border-0 border-b border-transparent hover:border-gray-200 focus:border-orange-400 focus:outline-none transition-colors px-1 py-0.5"
+            className="text-sm font-semibold text-center w-full bg-transparent border-0 border-b border-transparent hover:border-gray-200 focus:border-accent focus:outline-none transition-colors px-1 py-0.5"
             placeholder="Product Name"
           />
 
@@ -58,7 +58,7 @@ export function ProductCard({
 
           {discount > 0 && (
             <div className="text-xs">
-              <span className="text-orange-600 font-bold">{discount}% Off</span>
+              <span className="text-accent font-bold">{discount}% Off</span>
               <span className="text-gray-400"> MSRP</span>
               {sku.units && (
                 <>
@@ -76,44 +76,3 @@ export function ProductCard({
   );
 }
 
-export function ProductCardExport({ sku }: { sku: SKU }) {
-  const discount = percentOff(sku.msrp, sku.offerPrice);
-  const image = sku.processedImage || sku.imageUrl;
-
-  return (
-    <div className="flex flex-col items-center gap-2 px-4">
-      {image ? (
-        <div className="w-36 h-36 flex items-center justify-center">
-          <img
-            src={image}
-            alt={sku.name}
-            className="max-w-full max-h-full object-contain"
-          />
-        </div>
-      ) : (
-        <div className="w-36 h-36 bg-gray-100 rounded-lg" />
-      )}
-
-      <div className="text-center space-y-0.5">
-        <div className="text-sm font-semibold text-gray-900">{sku.name}</div>
-        <div className="text-xs text-gray-500">
-          <span className="line-through">MSRP: {formatPrice(sku.msrp)}</span>
-          <span className="mx-1">|</span>
-          <span className="font-semibold text-gray-800">
-            Your Price: {formatPrice(sku.offerPrice)}
-          </span>
-        </div>
-        {discount > 0 && (
-          <div className="text-xs font-bold text-orange-600">
-            {discount}% Off MSRP
-            {sku.units && (
-              <span className="text-gray-500 font-normal">
-                {" "}| {sku.units.toLocaleString()} Units
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}

@@ -13,13 +13,13 @@ function buildExportHTML(skus: SKU[]): HTMLDivElement {
   for (const sku of skus) {
     const card = document.createElement("div");
     card.style.cssText =
-      "display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;";
+      "display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 16px;height:280px;";
 
     const imgSrc = sku.processedImage || sku.imageUrl;
     if (imgSrc) {
       const imgWrap = document.createElement("div");
       imgWrap.style.cssText =
-        "width:144px;height:144px;display:flex;align-items:center;justify-content:center;";
+        "width:160px;height:160px;display:flex;align-items:center;justify-content:center;flex-shrink:0;";
       const img = document.createElement("img");
       img.src = imgSrc;
       img.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;";
@@ -28,7 +28,7 @@ function buildExportHTML(skus: SKU[]): HTMLDivElement {
     } else {
       const placeholder = document.createElement("div");
       placeholder.style.cssText =
-        "width:144px;height:144px;background:#f3f4f6;border-radius:8px;";
+        "width:160px;height:160px;background:#f3f4f6;border-radius:8px;flex-shrink:0;";
       card.appendChild(placeholder);
     }
 
@@ -49,7 +49,7 @@ function buildExportHTML(skus: SKU[]): HTMLDivElement {
     const discount = percentOff(sku.msrp, sku.offerPrice);
     if (discount > 0) {
       const discountEl = document.createElement("div");
-      discountEl.style.cssText = "font-size:12px;font-weight:700;color:#ea580c;";
+      discountEl.style.cssText = "font-size:12px;font-weight:700;color:#564ef5;";
       let discountText = `${discount}% Off MSRP`;
       if (sku.units) {
         discountText += ` <span style="color:#6b7280;font-weight:400">| ${sku.units.toLocaleString()} Units</span>`;

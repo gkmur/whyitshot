@@ -38,13 +38,13 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
       <div className="flex border-b border-gray-100">
         <button
           onClick={() => setMode("paste")}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
             mode === "paste"
-              ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50/50"
+              ? "text-accent border-b-2 border-accent bg-accent-light/50"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
@@ -54,7 +54,7 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
           onClick={() => setMode("manual")}
           className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
             mode === "manual"
-              ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50/50"
+              ? "text-accent border-b-2 border-accent bg-accent-light/50"
               : "text-gray-400 hover:text-gray-600"
           }`}
         >
@@ -70,7 +70,7 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
                 value={pasteValue}
                 onChange={(e) => setPasteValue(e.target.value)}
                 placeholder={`Paste tab-separated data here:\n\nProduct Name\tMSRP\tOffer Price\tUnits\nLuka Duffel\t299\t167.44\t800\nLuka Mini\t199\t111.44\t500`}
-                className="w-full h-32 text-sm font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none placeholder:text-gray-300 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+                className="w-full h-32 text-sm font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none placeholder:text-gray-300 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
               />
               <p className="text-[11px] text-gray-400 mt-1">
                 Columns: Product Name, MSRP, Offer Price, Units (optional)
@@ -79,7 +79,7 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
             <button
               onClick={handleImport}
               disabled={!pasteValue.trim()}
-              className="w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="w-full py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               Import SKUs
             </button>
@@ -90,7 +90,7 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
               name="name"
               placeholder="Product Name"
               required
-              className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+              className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
             />
             <div className="grid grid-cols-3 gap-2">
               <input
@@ -98,25 +98,25 @@ export function DataInput({ onImport, onAddSingle }: DataInputProps) {
                 type="number"
                 step="0.01"
                 placeholder="MSRP"
-                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               />
               <input
                 name="price"
                 type="number"
                 step="0.01"
                 placeholder="Offer Price"
-                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               />
               <input
                 name="units"
                 type="number"
                 placeholder="Units"
-                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               />
             </div>
             <button
               type="submit"
-              className="w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+              className="w-full py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent transition-colors"
             >
               Add SKU
             </button>

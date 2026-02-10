@@ -41,7 +41,7 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
       <button
         onClick={handleDownload}
         disabled={disabled || downloading}
-        className="flex-1 py-2.5 bg-gray-900 text-white rounded-lg text-sm font-medium hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="flex-1 py-2.5 bg-accent text-white rounded-xl text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {downloading ? (
           <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -55,7 +55,7 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
       <button
         onClick={handleCopy}
         disabled={disabled || copying}
-        className="flex-1 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
+        className="flex-1 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
       >
         {copied ? (
           <>

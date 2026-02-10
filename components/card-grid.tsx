@@ -33,7 +33,7 @@ export function CardGrid({
       ))}
       <button
         onClick={onAddEmpty}
-        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-xl py-8 text-gray-300 hover:border-orange-300 hover:text-orange-400 transition-colors min-h-[200px]"
+        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl py-8 text-gray-300 hover:border-accent/40 hover:text-accent transition-colors min-h-[200px]"
       >
         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />

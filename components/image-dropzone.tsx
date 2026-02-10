@@ -57,7 +57,7 @@ export function ImageDropzone({
     return (
       <div className="aspect-square bg-gray-50 flex items-center justify-center rounded-lg">
         <div className="text-center">
-          <div className="w-6 h-6 border-2 border-orange-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <span className="text-xs text-gray-400">Removing bg...</span>
         </div>
       </div>
@@ -104,7 +104,7 @@ export function ImageDropzone({
     <label
       className={`aspect-square border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
         isDragging
-          ? "border-orange-400 bg-orange-50"
+          ? "border-accent bg-accent-light"
           : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
       }`}
       onDrop={handleDrop}
