@@ -1,0 +1,128 @@
+"use client";
+
+import { useState } from "react";
+import { parseTSV } from "@/lib/parse-tsv";
+import { createSKU, type SKU } from "@/types/sku";
+
+interface DataInputProps {
+  onImport: (skus: SKU[]) => void;
+  onAddSingle: (sku: SKU) => void;
+}
+
+export function DataInput({ onImport, onAddSingle }: DataInputProps) {
+  const [pasteValue, setPasteValue] = useState("");
+  const [mode, setMode] = useState<"paste" | "manual">("paste");
+
+  const handleImport = () => {
+    const skus = parseTSV(pasteValue);
+    if (skus.length > 0) {
+      onImport(skus);
+      setPasteValue("");
+    }
+  };
+
+  const handleAddManual = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const sku = createSKU({
+      name: (data.get("name") as string) || "Untitled",
+      msrp: parseFloat(data.get("msrp") as string) || 0,
+      offerPrice: parseFloat(data.get("price") as string) || 0,
+      units: data.get("units")
+        ? parseInt(data.get("units") as string, 10) || undefined
+        : undefined,
+    });
+    onAddSingle(sku);
+    form.reset();
+  };
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div className="flex border-b border-gray-100">
+        <button
+          onClick={() => setMode("paste")}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+            mode === "paste"
+              ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50/50"
+              : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          Paste from Spreadsheet
+        </button>
+        <button
+          onClick={() => setMode("manual")}
+          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+            mode === "manual"
+              ? "text-orange-600 border-b-2 border-orange-500 bg-orange-50/50"
+              : "text-gray-400 hover:text-gray-600"
+          }`}
+        >
+          Add Manually
+        </button>
+      </div>
+
+      <div className="p-4">
+        {mode === "paste" ? (
+          <div className="space-y-3">
+            <div>
+              <textarea
+                value={pasteValue}
+                onChange={(e) => setPasteValue(e.target.value)}
+                placeholder={`Paste tab-separated data here:\n\nProduct Name\tMSRP\tOffer Price\tUnits\nLuka Duffel\t299\t167.44\t800\nLuka Mini\t199\t111.44\t500`}
+                className="w-full h-32 text-sm font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none placeholder:text-gray-300 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400"
+              />
+              <p className="text-[11px] text-gray-400 mt-1">
+                Columns: Product Name, MSRP, Offer Price, Units (optional)
+              </p>
+            </div>
+            <button
+              onClick={handleImport}
+              disabled={!pasteValue.trim()}
+              className="w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Import SKUs
+            </button>
+          </div>
+        ) : (
+          <form onSubmit={handleAddManual} className="space-y-3">
+            <input
+              name="name"
+              placeholder="Product Name"
+              required
+              className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+            />
+            <div className="grid grid-cols-3 gap-2">
+              <input
+                name="msrp"
+                type="number"
+                step="0.01"
+                placeholder="MSRP"
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+              />
+              <input
+                name="price"
+                type="number"
+                step="0.01"
+                placeholder="Offer Price"
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+              />
+              <input
+                name="units"
+                type="number"
+                placeholder="Units"
+                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-orange-400"
+              />
+            </div>
+            <button
+              type="submit"
+              className="w-full py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 transition-colors"
+            >
+              Add SKU
+            </button>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+}
