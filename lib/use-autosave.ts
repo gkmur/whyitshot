@@ -4,7 +4,10 @@ import { saveSession } from "./storage";
 
 export function useAutosave(skus: SKU[], delay = 500) {
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestRef = useRef(skus);
   const isFirstRender = useRef(true);
+
+  latestRef.current = skus;
 
   useEffect(() => {
     if (isFirstRender.current) {
@@ -17,13 +20,14 @@ export function useAutosave(skus: SKU[], delay = 500) {
     }
 
     timeoutRef.current = setTimeout(() => {
-      saveSession(skus);
+      saveSession(latestRef.current);
     }, delay);
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
       }
+      saveSession(latestRef.current);
     };
   }, [skus, delay]);
 }

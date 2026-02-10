@@ -14,6 +14,7 @@ export default function Home() {
   const [bgRemovalEnabled, setBgRemovalEnabled] = useState(true);
   const [showUndo, setShowUndo] = useState(false);
   const lastClearedRef = useRef<SKU[]>([]);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useAutosave(skus);
 
@@ -75,7 +76,8 @@ export default function Home() {
     lastClearedRef.current = skus;
     setSkus([]);
     setShowUndo(true);
-    setTimeout(() => setShowUndo(false), 5000);
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    undoTimeoutRef.current = setTimeout(() => setShowUndo(false), 5000);
   };
 
   const handleUndoClear = () => {

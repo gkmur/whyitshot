@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface ImageDropzoneProps {
   image?: string;
@@ -18,6 +18,11 @@ export function ImageDropzone({
   const [urlValue, setUrlValue] = useState("");
   const [urlError, setUrlError] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => { abortRef.current?.abort(); };
+  }, []);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -58,11 +63,25 @@ export function ImageDropzone({
   );
 
   const handleUrlSubmit = async () => {
-    if (!urlValue.trim()) return;
+    const url = urlValue.trim();
+    if (!url) return;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
+        setUrlError("Only https:// and http:// URLs are supported.");
+        return;
+      }
+    } catch {
+      setUrlError("Invalid URL.");
+      return;
+    }
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setUrlError("");
     setUrlLoading(true);
     try {
-      const response = await fetch(urlValue);
+      const response = await fetch(url, { signal: controller.signal });
       if (!response.ok) throw new Error("Failed to fetch");
       const contentType = response.headers.get("content-type");
       if (!contentType?.startsWith("image/")) throw new Error("Not an image");
@@ -76,7 +95,8 @@ export function ImageDropzone({
         }
       };
       reader.readAsDataURL(blob);
-    } catch {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setUrlError("Couldn't load that URL. Try downloading the image and dragging it here.");
     } finally {
       setUrlLoading(false);

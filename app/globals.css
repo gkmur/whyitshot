@@ -2,7 +2,6 @@
 
 @theme inline {
   --font-sans: var(--font-inter);
-  --font-heading: var(--font-sora);
   --color-accent: #564ef5;
   --color-accent-light: #eef0ff;
   --color-accent-hover: #4338ca;

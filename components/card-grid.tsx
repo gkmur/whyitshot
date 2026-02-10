@@ -23,20 +23,22 @@ export function CardGrid({
 }: CardGridProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
-  const dragRef = useRef<{ startY: number; index: number } | null>(null);
+  const dragRef = useRef<{ index: number } | null>(null);
+  const overIndexRef = useRef<number | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   if (skus.length === 0) return null;
 
   const handleDragStart = (index: number) => (e: React.PointerEvent) => {
     if (skus.length <= 1) return;
-    dragRef.current = { startY: e.clientY, index };
+    dragRef.current = { index };
     setDragIndex(index);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
   const handleDragMove = (e: React.PointerEvent) => {
-    if (dragRef.current === null) return;
-    const elements = document.querySelectorAll("[data-card-index]");
+    if (dragRef.current === null || !gridRef.current) return;
+    const elements = gridRef.current.querySelectorAll("[data-card-index]");
     let closest = dragRef.current.index;
     let closestDist = Infinity;
     elements.forEach((el) => {
@@ -48,20 +50,24 @@ export function CardGrid({
         closest = parseInt(el.getAttribute("data-card-index") || "0", 10);
       }
     });
+    overIndexRef.current = closest;
     setOverIndex(closest);
   };
 
   const handleDragEnd = () => {
-    if (dragRef.current !== null && overIndex !== null && overIndex !== dragRef.current.index) {
-      onReorder(dragRef.current.index, overIndex);
+    const over = overIndexRef.current;
+    if (dragRef.current !== null && over !== null && over !== dragRef.current.index) {
+      onReorder(dragRef.current.index, over);
     }
     dragRef.current = null;
+    overIndexRef.current = null;
     setDragIndex(null);
     setOverIndex(null);
   };
 
   return (
     <div
+      ref={gridRef}
       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-[720px] mx-auto"
       onPointerMove={handleDragMove}
       onPointerUp={handleDragEnd}
@@ -70,7 +76,7 @@ export function CardGrid({
         <div
           key={sku.id}
           data-card-index={i}
-          className={`relative transition-transform ${
+          className={`relative group transition-transform ${
             dragIndex === i ? "scale-105 opacity-70 z-10 shadow-lg" : ""
           } ${overIndex === i && dragIndex !== null && dragIndex !== i ? "ring-2 ring-accent/30 rounded-2xl" : ""}`}
         >
