@@ -100,10 +100,10 @@ lib/
 
 Update theme tokens and font loading. Everything downstream inherits these.
 
-- [ ] Update `app/globals.css` — swap accent color to `#564ef5`, accent-light to `#eef0ff`, add `--color-accent-hover`, add `--font-heading` variable
-- [ ] Load TWK Lausanne in `app/layout.tsx` (check if available via Google Fonts or self-host; fallback: use `Sora` or `DM Sans` from Google Fonts as geometric sans alternative)
-- [ ] Update `app/page.tsx` header styling — purple accent, TWK Lausanne on `h1`
-- [ ] Increase section spacing from `space-y-8` to `space-y-12` on main, section padding to 40-60px
+- [x] Update `app/globals.css` — swap accent color to `#564ef5`, accent-light to `#eef0ff`, add `--color-accent-hover`, add `--font-heading` variable
+- [x] Load TWK Lausanne in `app/layout.tsx` (check if available via Google Fonts or self-host; fallback: use `Sora` or `DM Sans` from Google Fonts as geometric sans alternative)
+- [x] Update `app/page.tsx` header styling — purple accent, TWK Lausanne on `h1`
+- [x] Increase section spacing from `space-y-8` to `space-y-12` on main, section padding to 40-60px
 
 **Files:** `app/globals.css`, `app/layout.tsx`, `app/page.tsx`
 **Done when:** App loads with purple accent and new typography. No visual regressions in layout.
@@ -137,12 +137,12 @@ const sora = Sora({ subsets: ["latin"], variable: "--font-heading-face" });
 
 Sweep every component, replacing orange references and tightening spacing.
 
-- [ ] `components/data-input.tsx` — swap `orange-*` → accent classes, update tab indicator, focus rings, import button
-- [ ] `components/product-card.tsx` — swap `orange-*` focus borders, update remove button color to neutral, increase card padding
-- [ ] `components/card-grid.tsx` — update "Add SKU" button border hover to purple, increase gap
-- [ ] `components/image-dropzone.tsx` — swap drag highlight from `orange-400/orange-50` to purple, update spinner color
-- [ ] `components/export-controls.tsx` — update button styles (primary = accent purple bg)
-- [ ] Update border-radius to `rounded-2xl` (20px) on major containers (cards, input area, export section)
+- [x] `components/data-input.tsx` — swap `orange-*` → accent classes, update tab indicator, focus rings, import button
+- [x] `components/product-card.tsx` — swap `orange-*` focus borders, update remove button color to neutral, increase card padding
+- [x] `components/card-grid.tsx` — update "Add SKU" button border hover to purple, increase gap
+- [x] `components/image-dropzone.tsx` — swap drag highlight from `orange-400/orange-50` to purple, update spinner color
+- [x] `components/export-controls.tsx` — update button styles (primary = accent purple bg)
+- [x] Update border-radius to `rounded-2xl` (20px) on major containers (cards, input area, export section)
 
 **Files:** All `components/*.tsx`
 **Done when:** Every interactive element uses purple accent. No orange remains anywhere in the UI.
@@ -165,10 +165,10 @@ Locations to update:
 
 Fix uniform image dimensions and align export styling with new design.
 
-- [ ] `lib/export-image.ts` — update `buildExportHTML` to use fixed image container (e.g., 160x160px) with `object-fit:contain` for all product images
-- [ ] Update export accent color from orange (`#ea580c`) to purple (`#564ef5`) in inline styles
-- [ ] Ensure all cards in export grid have identical total height regardless of text length (flex column with fixed sections)
-- [ ] Delete `ProductCardExport` from `components/product-card.tsx` (dead code from v1 refactor — still present at line 79)
+- [x] `lib/export-image.ts` — update `buildExportHTML` to use fixed image container (e.g., 160x160px) with `object-fit:contain` for all product images
+- [x] Update export accent color from orange (`#ea580c`) to purple (`#564ef5`) in inline styles
+- [x] Ensure all cards in export grid have identical total height regardless of text length (flex column with fixed sections)
+- [x] Delete `ProductCardExport` from `components/product-card.tsx` (dead code from v1 refactor — still present at line 79)
 
 **Files:** `lib/export-image.ts`, `components/product-card.tsx`
 **Done when:** Export PNG shows all product images at identical dimensions. Cards are visually uniform.
@@ -197,14 +197,14 @@ The append-capture-remove pattern is already implemented correctly. Key reminder
 
 Add persistence so sessions survive refresh.
 
-- [ ] Create `lib/storage.ts`:
+- [x] Create `lib/storage.ts`:
   - Define `PersistedSKU` type (excludes `isProcessingImage`, excludes image data)
   - Define `SessionData` type with `version: 1` discriminant for future migrations
   - `saveSession(skus: SKU[]): boolean` — serialize text-only SKU data, return false on `QuotaExceededError`
   - `loadSession(): SKU[] | null` — parse from `unknown`, validate shape, return null on corruption
   - `clearSession(): void`
-- [ ] Create `lib/use-autosave.ts` — `useAutosave(skus: SKU[])` hook that debounces saves (500ms) via `useEffect`
-- [ ] Update `app/page.tsx`:
+- [x] Create `lib/use-autosave.ts` — `useAutosave(skus: SKU[])` hook that debounces saves (500ms) via `useEffect`
+- [x] Update `app/page.tsx`:
   - Load session on mount with `useState(() => loadSession() ?? [])`
   - Wire `useAutosave(skus)`
 
@@ -272,9 +272,9 @@ function loadSession(): SKU[] | null {
 
 Persistent empty state hints in key sections.
 
-- [ ] Add empty state hints to `components/data-input.tsx` — when no SKUs exist, show example format below the textarea: `"Example: Luka Duffel\t$299\t$167.44\t800"`
-- [ ] Add empty state hint to `components/card-grid.tsx` — when grid has cards but no images, show "Drag product images onto each card, or click to upload"
-- [ ] Add empty state hint to `components/image-dropzone.tsx` — improve the empty dropzone label from "Drop image" to "Drop image or paste URL"
+- [x] Add empty state hints to `components/data-input.tsx` — when no SKUs exist, show example format below the textarea: `"Example: Luka Duffel\t$299\t$167.44\t800"`
+- [x] Add empty state hint to `components/card-grid.tsx` — when grid has cards but no images, show "Drag product images onto each card, or click to upload"
+- [x] Add empty state hint to `components/image-dropzone.tsx` — improve the empty dropzone label from "Drop image" to "Drop image or paste URL"
 
 **Files:** `components/data-input.tsx`, `components/card-grid.tsx`, `components/image-dropzone.tsx`
 **Done when:** Empty sections show contextual guidance text. No tooltip overlay needed.
@@ -296,7 +296,7 @@ Three independent features.
 
 #### 6a. Undo: Restore Last Cleared
 
-- [ ] Update `app/page.tsx`:
+- [x] Update `app/page.tsx`:
   - Before `handleClear`, save current `skus` to a `lastCleared` ref
   - Show "Undo" button (briefly, 5s timeout) after clear, which restores `lastCleared`
   - This covers the only truly destructive action without hijacking Ctrl+Z
@@ -320,12 +320,12 @@ The original plan specified a full past/future state stack with 30 entries, keyb
 
 #### 6b. Drag to Reorder
 
-- [ ] Update `components/card-grid.tsx`:
+- [x] Update `components/card-grid.tsx`:
   - Add drag handle (grip icon) to top-left of each card
   - Implement reorder via pointer events (pointerdown → track, pointermove → reorder, pointerup → commit)
   - On reorder, call a new `onReorder(fromIndex, toIndex)` callback
   - Visual feedback: dragged card gets slight scale + shadow, drop target shows insertion line
-- [ ] Update `app/page.tsx`:
+- [x] Update `app/page.tsx`:
   - Add `handleReorder` callback that splices the SKU array
   - Pass `onReorder` to CardGrid
 
@@ -344,7 +344,7 @@ Rapid drags can cause stale state if the reorder callback uses closure-captured 
 
 #### 6c. Image URL Paste
 
-- [ ] Update `components/image-dropzone.tsx`:
+- [x] Update `components/image-dropzone.tsx`:
   - Add a small "or paste URL" text link below the drop area
   - On click, show a text input that accepts a URL
   - On submit, attempt client-side `fetch(url)` first
