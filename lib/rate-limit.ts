@@ -1,3 +1,15 @@
+export function checkOrigin(req: Request): Response | null {
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host");
+  if (origin && host) {
+    const originHost = new URL(origin).host;
+    if (originHost !== host) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+  return null;
+}
+
 const windows = new Map<string, Map<string, number[]>>();
 
 export function rateLimit(

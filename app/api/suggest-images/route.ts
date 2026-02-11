@@ -1,5 +1,5 @@
 import type { ImageSuggestion } from "@/types/suggest-images";
-import { rateLimit } from "@/lib/rate-limit";
+import { checkOrigin, rateLimit } from "@/lib/rate-limit";
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -31,6 +31,8 @@ function sanitizeTitle(raw: string): string {
 }
 
 export async function POST(req: Request) {
+  const forbidden = checkOrigin(req);
+  if (forbidden) return forbidden;
   const limited = rateLimit("suggest-images", req, 10);
   if (limited) return limited;
 

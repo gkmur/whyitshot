@@ -1,8 +1,10 @@
-import { rateLimit } from "@/lib/rate-limit";
+import { checkOrigin, rateLimit } from "@/lib/rate-limit";
 
 const REMOVEBG_URL = "https://api.remove.bg/v1.0/removebg";
 
 export async function POST(req: Request) {
+  const forbidden = checkOrigin(req);
+  if (forbidden) return forbidden;
   const limited = rateLimit("remove-bg", req, 5);
   if (limited) return limited;
   const apiKey = process.env.REMOVEBG_API_KEY;

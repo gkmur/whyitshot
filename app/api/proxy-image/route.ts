@@ -1,4 +1,4 @@
-import { rateLimit } from "@/lib/rate-limit";
+import { checkOrigin, rateLimit } from "@/lib/rate-limit";
 
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const MAX_BYTES = 2_000_000;
@@ -23,6 +23,8 @@ function validateProxyUrl(rawUrl: string): URL | null {
 }
 
 export async function POST(req: Request) {
+  const forbidden = checkOrigin(req);
+  if (forbidden) return forbidden;
   const limited = rateLimit("proxy-image", req, 30);
   if (limited) return limited;
 
