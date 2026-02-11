@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { parseTSV } from "@/lib/parse-tsv";
 import { createSKU, type SKU } from "@/types/sku";
 import { ImageDropzone } from "./image-dropzone";
 import { removeBg } from "@/lib/remove-bg";
+import type { ImageSuggestion } from "@/types/suggest-images";
 
 interface DataInputProps {
   onImport: (skus: SKU[]) => void;
@@ -18,6 +19,59 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
   const [mode, setMode] = useState<"paste" | "manual">("paste");
   const [stagedImage, setStagedImage] = useState<string | null>(null);
 
+  const [nameValue, setNameValue] = useState("");
+  const [suggestions, setSuggestions] = useState<ImageSuggestion[]>([]);
+  const [suggestLoading, setSuggestLoading] = useState(false);
+  const [suggestError, setSuggestError] = useState<string | null>(null);
+  const [lastQuery, setLastQuery] = useState("");
+  const suggestAbortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    return () => { suggestAbortRef.current?.abort(); };
+  }, []);
+
+  const fetchSuggestions = async (query: string) => {
+    suggestAbortRef.current?.abort();
+    const controller = new AbortController();
+    suggestAbortRef.current = controller;
+
+    setSuggestLoading(true);
+    setSuggestError(null);
+    setLastQuery(query);
+
+    try {
+      const res = await fetch("/api/suggest-images", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query }),
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) return;
+      if (!res.ok) throw new Error("Search failed");
+      const data = await res.json();
+      if (controller.signal.aborted) return;
+      setSuggestions(data.images ?? []);
+      if ((data.images ?? []).length === 0) {
+        setSuggestError("No images found");
+      }
+    } catch (e) {
+      if (e instanceof DOMException && e.name === "AbortError") return;
+      setSuggestError("Couldn't load suggestions");
+    } finally {
+      setSuggestLoading(false);
+    }
+  };
+
+  const handleNameBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const q = e.target.value.trim();
+    if (q.length < 3 || q === lastQuery) return;
+    fetchSuggestions(q);
+  };
+
+  const handleSuggestionClick = (dataUrl: string) => {
+    setStagedImage(dataUrl);
+  };
+
   const handleImport = () => {
     const skus = parseTSV(pasteValue);
     if (skus.length > 0) {
@@ -28,6 +82,7 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
 
   const handleAddManual = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    suggestAbortRef.current?.abort();
     const form = e.currentTarget;
     const data = new FormData(form);
     const imageToProcess = stagedImage;
@@ -41,6 +96,11 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
     onAddSingle(sku);
     form.reset();
     setStagedImage(null);
+    setNameValue("");
+    setSuggestions([]);
+    setSuggestError(null);
+    setSuggestLoading(false);
+    setLastQuery("");
 
     if (bgRemovalEnabled && imageToProcess) {
       try {
@@ -108,10 +168,53 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
           <form onSubmit={handleAddManual} className="space-y-3">
             <input
               name="name"
+              value={nameValue}
+              onChange={(e) => setNameValue(e.target.value)}
+              onBlur={handleNameBlur}
               placeholder="Product Name"
               required
               className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
             />
+            {(suggestLoading || suggestions.length > 0 || suggestError) && (
+              <div className="space-y-1">
+                <span className="text-[11px] text-gray-400">Suggested images</span>
+                {suggestLoading ? (
+                  <div className="flex gap-2">
+                    {[0, 1, 2].map((i) => (
+                      <div key={i} className="w-1/3 h-20 bg-gray-100 rounded-lg animate-pulse" />
+                    ))}
+                  </div>
+                ) : suggestError && suggestions.length === 0 ? (
+                  <p className="text-[10px] text-gray-300">{suggestError}</p>
+                ) : (
+                  <div className="flex gap-2">
+                    {suggestions.map((s, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => handleSuggestionClick(s.dataUrl)}
+                        className={`w-1/3 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                          stagedImage === s.dataUrl
+                            ? "border-accent"
+                            : "border-gray-200 hover:border-gray-300"
+                        }`}
+                      >
+                        <img src={s.dataUrl} alt={s.title} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            {nameValue.trim().length >= 3 && suggestions.length === 0 && !suggestLoading && !suggestError && (
+              <button
+                type="button"
+                onClick={() => fetchSuggestions(nameValue.trim())}
+                className="text-[10px] text-gray-300 hover:text-accent transition-colors w-full text-center"
+              >
+                Suggest product images
+              </button>
+            )}
             <ImageDropzone
               image={stagedImage ?? undefined}
               onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
