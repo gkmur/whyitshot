@@ -6,13 +6,16 @@ interface ImageDropzoneProps {
   image?: string;
   isProcessing?: boolean;
   onImageSelected: (dataUrl: string) => void;
+  compact?: boolean;
 }
 
 export function ImageDropzone({
   image,
   isProcessing,
   onImageSelected,
+  compact,
 }: ImageDropzoneProps) {
+  const sizeClass = compact ? "h-28" : "aspect-square";
   const [isDragging, setIsDragging] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState("");
@@ -105,7 +108,7 @@ export function ImageDropzone({
 
   if (isProcessing) {
     return (
-      <div className="aspect-square bg-gray-50 flex items-center justify-center rounded-lg">
+      <div className={`${sizeClass} bg-gray-50 flex items-center justify-center rounded-lg`}>
         <div className="text-center">
           <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <span className="text-xs text-gray-400">Removing bg...</span>
@@ -117,7 +120,7 @@ export function ImageDropzone({
   if (image) {
     return (
       <div
-        className="aspect-square bg-white flex items-center justify-center rounded-lg relative group cursor-pointer overflow-hidden"
+        className={`${sizeClass} bg-white flex items-center justify-center rounded-lg relative group cursor-pointer overflow-hidden`}
         onDrop={handleDrop}
         onDragOver={(e) => {
           e.preventDefault();
@@ -153,7 +156,7 @@ export function ImageDropzone({
   return (
     <div className="space-y-1">
       <label
-        className={`aspect-square border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+        className={`${sizeClass} border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
           isDragging
             ? "border-accent bg-accent-light"
             : "border-gray-200 hover:border-gray-300 bg-gray-50/50"

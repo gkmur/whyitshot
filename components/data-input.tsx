@@ -112,12 +112,11 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
               required
               className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
             />
-            <div className="h-32">
-              <ImageDropzone
-                image={stagedImage ?? undefined}
-                onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
-              />
-            </div>
+            <ImageDropzone
+              image={stagedImage ?? undefined}
+              onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+              compact
+            />
             <div className="grid grid-cols-2 gap-2">
               <input
                 name="msrp"
