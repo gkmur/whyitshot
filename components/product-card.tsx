@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { type SKU, percentOff, formatPrice } from "@/types/sku";
 import { ImageDropzone } from "./image-dropzone";
 
@@ -10,7 +11,7 @@ interface ProductCardProps {
   onRemove: (id: string) => void;
 }
 
-export function ProductCard({
+export const ProductCard = React.memo(function ProductCard({
   sku,
   onUpdate,
   onImageSelected,
@@ -66,5 +67,4 @@ export function ProductCard({
       </div>
     </div>
   );
-}
-
+});

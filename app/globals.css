@@ -8,6 +8,14 @@
   --color-muted: #6b7280;
   --color-border: #e5e7eb;
   --color-surface: #f9fafb;
+  --animate-card-in: card-in 300ms ease-out;
+}
+
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
 }
 
 body {

@@ -8,6 +8,26 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 
 const MAX_THUMBNAIL_BYTES = 150_000;
+const TARGET_COUNT = 15;
+const OVERFETCH_COUNT = 20;
+const CONCURRENCY = 3;
+
+interface SerpImageResult {
+  thumbnail: string;
+  original?: string;
+  title?: string;
+}
+
+function sanitizeTitle(raw: string): string {
+  return raw
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/<[^>]*>/g, "")
+    .trim();
+}
 
 export async function POST(req: Request) {
   const apiKey = process.env.SERPAPI_KEY;
@@ -48,40 +68,63 @@ export async function POST(req: Request) {
   }
 
   const data = await serpRes.json();
-  const results = (data.images_results ?? []).slice(0, 3);
+  const results: SerpImageResult[] = (
+    (data as { images_results?: SerpImageResult[] }).images_results ?? []
+  ).slice(0, OVERFETCH_COUNT);
+  const encoder = new TextEncoder();
 
-  const resolved = await Promise.allSettled(
-    results.map(async (r: { thumbnail: string; title?: string }) => {
-      const imgRes = await fetch(r.thumbnail, {
-        signal: AbortSignal.timeout(3000),
+  const stream = new ReadableStream({
+    async start(controller) {
+      let sent = 0;
+      const queue = [...results];
+
+      const workers = Array.from({ length: CONCURRENCY }, async () => {
+        while (queue.length > 0 && sent < TARGET_COUNT) {
+          const r = queue.shift();
+          if (!r) break;
+          try {
+            const imgRes = await fetch(r.thumbnail, {
+              signal: AbortSignal.timeout(3000),
+            });
+            if (!imgRes.ok || sent >= TARGET_COUNT) continue;
+
+            const rawType = imgRes.headers
+              .get("content-type")
+              ?.split(";")[0]
+              ?.trim()
+              .toLowerCase();
+            if (!rawType || !ALLOWED_IMAGE_TYPES.has(rawType)) continue;
+
+            const buffer = await imgRes.arrayBuffer();
+            if (buffer.byteLength > MAX_THUMBNAIL_BYTES || sent >= TARGET_COUNT)
+              continue;
+
+            const base64 = Buffer.from(buffer).toString("base64");
+            sent++;
+            controller.enqueue(
+              encoder.encode(
+                JSON.stringify({
+                  dataUrl: `data:${rawType};base64,${base64}`,
+                  originalUrl: r.original ?? "",
+                  title: sanitizeTitle(r.title ?? ""),
+                } satisfies ImageSuggestion) + "\n"
+              )
+            );
+          } catch {
+            // thumbnail fetch failed, skip
+          }
+        }
       });
-      if (!imgRes.ok) return null;
 
-      const rawType = imgRes.headers
-        .get("content-type")
-        ?.split(";")[0]
-        ?.trim()
-        .toLowerCase();
-      if (!rawType || !ALLOWED_IMAGE_TYPES.has(rawType)) return null;
+      await Promise.allSettled(workers);
+      controller.close();
+    },
+  });
 
-      const buffer = await imgRes.arrayBuffer();
-      if (buffer.byteLength > MAX_THUMBNAIL_BYTES) return null;
-
-      const base64 = Buffer.from(buffer).toString("base64");
-      return {
-        dataUrl: `data:${rawType};base64,${base64}`,
-        title: r.title ?? "",
-      };
-    })
-  );
-
-  const images: ImageSuggestion[] = resolved
-    .filter(
-      (r): r is PromiseFulfilledResult<ImageSuggestion | null> =>
-        r.status === "fulfilled"
-    )
-    .map((r) => r.value)
-    .filter((img): img is ImageSuggestion => img !== null);
-
-  return Response.json({ images });
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "application/x-ndjson",
+      "Cache-Control": "no-cache",
+    },
+  });
 }
