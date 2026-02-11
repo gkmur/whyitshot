@@ -1,28 +1,46 @@
 "use client";
 
-import { useState } from "react";
-import { parseTSV } from "@/lib/parse-tsv";
+import { useState, useRef, useEffect } from "react";
 import { createSKU, type SKU } from "@/types/sku";
 import { ImageDropzone } from "./image-dropzone";
+import { ImagePanel } from "./image-panel";
 import { removeBg } from "@/lib/remove-bg";
 
 interface DataInputProps {
-  onImport: (skus: SKU[]) => void;
   onAddSingle: (sku: SKU) => void;
   onUpdate: (id: string, updates: Partial<SKU>) => void;
   bgRemovalEnabled: boolean;
+  skuCount: number;
 }
 
-export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }: DataInputProps) {
-  const [pasteValue, setPasteValue] = useState("");
-  const [mode, setMode] = useState<"paste" | "manual">("paste");
-  const [stagedImage, setStagedImage] = useState<string | null>(null);
+type FieldName = "name" | "msrp" | "price";
 
-  const handleImport = () => {
-    const skus = parseTSV(pasteValue);
-    if (skus.length > 0) {
-      onImport(skus);
-      setPasteValue("");
+export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }: DataInputProps) {
+  const [stagedImage, setStagedImage] = useState<string | null>(null);
+  const [nameValue, setNameValue] = useState("");
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [warnings, setWarnings] = useState<Partial<Record<FieldName, string>>>({});
+  const nameRef = useRef<HTMLInputElement>(null);
+  const msrpRef = useRef<HTMLInputElement>(null);
+  const priceRef = useRef<HTMLInputElement>(null);
+
+  // Auto-focus name field on mount when no SKUs exist, and after adding
+  useEffect(() => {
+    if (skuCount === 0) {
+      nameRef.current?.focus();
+    }
+  }, [skuCount]);
+
+  const validatePrices = () => {
+    const msrp = parseFloat(msrpRef.current?.value ?? "");
+    const price = parseFloat(priceRef.current?.value ?? "");
+    if (msrp > 0 && price > 0 && price > msrp) {
+      setWarnings((w) => ({ ...w, price: "Offer price is higher than MSRP" }));
+    } else {
+      setWarnings((w) => {
+        const { price: _, ...rest } = w;
+        return rest;
+      });
     }
   };
 
@@ -41,6 +59,12 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
     onAddSingle(sku);
     form.reset();
     setStagedImage(null);
+    setNameValue("");
+    setPanelOpen(false);
+    setWarnings({});
+
+    // Re-focus name field
+    requestAnimationFrame(() => nameRef.current?.focus());
 
     if (bgRemovalEnabled && imageToProcess) {
       try {
@@ -53,96 +77,79 @@ export function DataInput({ onImport, onAddSingle, onUpdate, bgRemovalEnabled }:
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="flex border-b border-gray-100">
-        <button
-          onClick={() => setMode("paste")}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            mode === "paste"
-              ? "text-accent border-b-2 border-accent bg-accent-light/50"
-              : "text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          Paste from Spreadsheet
-        </button>
-        <button
-          onClick={() => setMode("manual")}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            mode === "manual"
-              ? "text-accent border-b-2 border-accent bg-accent-light/50"
-              : "text-gray-400 hover:text-gray-600"
-          }`}
-        >
-          Add Manually
-        </button>
-      </div>
-
-      <div className="p-4">
-        {mode === "paste" ? (
-          <div className="space-y-3">
-            <div>
-              <textarea
-                value={pasteValue}
-                onChange={(e) => setPasteValue(e.target.value)}
-                placeholder={`Paste tab-separated data here:\n\nProduct Name\tMSRP\tOffer Price\nLuka Duffel\t299\t167.44\nLuka Mini\t199\t111.44`}
-                className="w-full h-32 text-sm font-mono bg-gray-50 border border-gray-200 rounded-lg p-3 resize-none placeholder:text-gray-300 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
+    <>
+      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div className="p-4">
+          <form onSubmit={handleAddManual} className="space-y-3">
+            <div className="flex gap-2">
+              <input
+                ref={nameRef}
+                name="name"
+                value={nameValue}
+                onChange={(e) => setNameValue(e.target.value)}
+                placeholder="Product Name"
+                required
+                className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               />
-              <p className="text-[11px] text-gray-400 mt-1">
-                Columns: Product Name, MSRP, Offer Price
-              </p>
-              {!pasteValue && (
-                <p className="text-[11px] text-gray-300 mt-0.5 font-mono">
-                  Example: Luka Duffel	$299	$167.44
-                </p>
+              {nameValue.trim().length >= 3 && (
+                <button
+                  type="button"
+                  onClick={() => setPanelOpen(true)}
+                  className="px-3 py-2 text-xs text-accent border border-accent/30 rounded-lg hover:bg-accent-light transition-colors whitespace-nowrap"
+                >
+                  Find images
+                </button>
               )}
             </div>
-            <button
-              onClick={handleImport}
-              disabled={!pasteValue.trim()}
-              className="w-full py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              Import SKUs
-            </button>
-          </div>
-        ) : (
-          <form onSubmit={handleAddManual} className="space-y-3">
-            <input
-              name="name"
-              placeholder="Product Name"
-              required
-              className="w-full text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
+
+            <ImageDropzone
+              image={stagedImage ?? undefined}
+              onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+              compact
             />
-            <div className="h-32">
-              <ImageDropzone
-                image={stagedImage ?? undefined}
-                onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
-              />
-            </div>
+
             <div className="grid grid-cols-2 gap-2">
               <input
+                ref={msrpRef}
                 name="msrp"
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="MSRP"
+                onBlur={validatePrices}
                 className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               />
               <input
+                ref={priceRef}
                 name="price"
                 type="number"
                 step="0.01"
+                min="0"
                 placeholder="Offer Price"
+                onBlur={validatePrices}
                 className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
               />
             </div>
+            {warnings.price && (
+              <p className="text-[11px] text-amber-500">{warnings.price}</p>
+            )}
+
             <button
               type="submit"
-              className="w-full py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent transition-colors"
+              className="w-full py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
             >
               Add SKU
             </button>
           </form>
-        )}
+        </div>
       </div>
-    </div>
+
+      <ImagePanel
+        query={nameValue.trim()}
+        open={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+      />
+    </>
   );
 }

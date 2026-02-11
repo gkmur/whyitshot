@@ -15,12 +15,9 @@ export default function Home() {
   const [showUndo, setShowUndo] = useState(false);
   const lastClearedRef = useRef<SKU[]>([]);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bgAbortMapRef = useRef<Map<string, AbortController>>(new Map());
 
   useAutosave(skus);
-
-  const handleImport = useCallback((imported: SKU[]) => {
-    setSkus((prev) => [...prev, ...imported]);
-  }, []);
 
   const handleAddSingle = useCallback((sku: SKU) => {
     setSkus((prev) => [...prev, sku]);
@@ -32,12 +29,28 @@ export default function Home() {
     );
   }, []);
 
+  const revokeSkuImages = (sku: SKU) => {
+    if (sku.processedImage?.startsWith("blob:")) URL.revokeObjectURL(sku.processedImage);
+    if (sku.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(sku.imageUrl);
+  };
+
   const handleRemove = useCallback((id: string) => {
-    setSkus((prev) => prev.filter((s) => s.id !== id));
+    bgAbortMapRef.current.get(id)?.abort();
+    bgAbortMapRef.current.delete(id);
+    setSkus((prev) => {
+      const removed = prev.find((s) => s.id === id);
+      if (removed) revokeSkuImages(removed);
+      return prev.filter((s) => s.id !== id);
+    });
   }, []);
 
   const handleImageSelected = useCallback(
     async (id: string, dataUrl: string) => {
+      // Cancel any prior BG removal for this SKU
+      bgAbortMapRef.current.get(id)?.abort();
+      const controller = new AbortController();
+      bgAbortMapRef.current.set(id, controller);
+
       setSkus((prev) =>
         prev.map((s) =>
           s.id === id
@@ -48,7 +61,8 @@ export default function Home() {
 
       if (bgRemovalEnabled) {
         try {
-          const processed = await removeBg(dataUrl);
+          const processed = await removeBg(dataUrl, controller.signal);
+          if (controller.signal.aborted) return;
           setSkus((prev) =>
             prev.map((s) =>
               s.id === id
@@ -57,11 +71,14 @@ export default function Home() {
             )
           );
         } catch {
+          if (controller.signal.aborted) return;
           setSkus((prev) =>
             prev.map((s) =>
               s.id === id ? { ...s, isProcessingImage: false } : s
             )
           );
+        } finally {
+          bgAbortMapRef.current.delete(id);
         }
       }
     },
@@ -73,11 +90,19 @@ export default function Home() {
   }, []);
 
   const handleClear = () => {
+    // Abort all in-flight BG removals
+    for (const ctrl of bgAbortMapRef.current.values()) ctrl.abort();
+    bgAbortMapRef.current.clear();
+
     lastClearedRef.current = skus;
     setSkus([]);
     setShowUndo(true);
     if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
-    undoTimeoutRef.current = setTimeout(() => setShowUndo(false), 5000);
+    undoTimeoutRef.current = setTimeout(() => {
+      lastClearedRef.current.forEach(revokeSkuImages);
+      lastClearedRef.current = [];
+      setShowUndo(false);
+    }, 5000);
   };
 
   const handleUndoClear = () => {
@@ -93,6 +118,14 @@ export default function Home() {
       return next;
     });
   }, []);
+
+  const handleBgToggle = (enabled: boolean) => {
+    setBgRemovalEnabled(enabled);
+    if (!enabled) {
+      for (const ctrl of bgAbortMapRef.current.values()) ctrl.abort();
+      bgAbortMapRef.current.clear();
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -128,7 +161,12 @@ export default function Home() {
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-12">
         {/* Data Input */}
         <div className="max-w-md mx-auto">
-          <DataInput onImport={handleImport} onAddSingle={handleAddSingle} onUpdate={handleUpdate} bgRemovalEnabled={bgRemovalEnabled} />
+          <DataInput
+            onAddSingle={handleAddSingle}
+            onUpdate={handleUpdate}
+            bgRemovalEnabled={bgRemovalEnabled}
+            skuCount={skus.length}
+          />
         </div>
 
         {/* Card Preview (editable) */}
@@ -145,7 +183,7 @@ export default function Home() {
                 <input
                   type="checkbox"
                   checked={bgRemovalEnabled}
-                  onChange={(e) => setBgRemovalEnabled(e.target.checked)}
+                  onChange={(e) => handleBgToggle(e.target.checked)}
                   className="rounded border-gray-300 text-accent focus:ring-accent"
                 />
                 Auto-remove backgrounds

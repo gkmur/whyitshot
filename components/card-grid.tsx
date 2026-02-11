@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { type SKU } from "@/types/sku";
 import { ProductCard } from "./product-card";
 
@@ -26,6 +26,26 @@ export function CardGrid({
   const dragRef = useRef<{ index: number } | null>(null);
   const overIndexRef = useRef<number | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const prevCountRef = useRef(skus.length);
+  const [newId, setNewId] = useState<string | null>(null);
+
+  // Detect new card and scroll to it
+  useEffect(() => {
+    if (skus.length > prevCountRef.current) {
+      const newest = skus[skus.length - 1];
+      setNewId(newest.id);
+      const timer = setTimeout(() => setNewId(null), 350);
+
+      requestAnimationFrame(() => {
+        const el = gridRef.current?.querySelector(`[data-card-id="${newest.id}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      });
+
+      prevCountRef.current = skus.length;
+      return () => clearTimeout(timer);
+    }
+    prevCountRef.current = skus.length;
+  }, [skus]);
 
   if (skus.length === 0) return null;
 
@@ -76,9 +96,11 @@ export function CardGrid({
         <div
           key={sku.id}
           data-card-index={i}
+          data-card-id={sku.id}
           className={`relative group transition-transform ${
             dragIndex === i ? "scale-105 opacity-70 z-10 shadow-lg" : ""
           } ${overIndex === i && dragIndex !== null && dragIndex !== i ? "ring-2 ring-accent/30 rounded-2xl" : ""}`}
+          style={newId === sku.id ? { animation: "var(--animate-card-in)" } : undefined}
         >
           {skus.length > 1 && (
             <div
