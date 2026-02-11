@@ -1,4 +1,5 @@
 import type { ImageSuggestion } from "@/types/suggest-images";
+import { rateLimit } from "@/lib/rate-limit";
 
 const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
@@ -30,6 +31,9 @@ function sanitizeTitle(raw: string): string {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimit("suggest-images", req, 10);
+  if (limited) return limited;
+
   const apiKey = process.env.SERPAPI_KEY;
   if (!apiKey) {
     return Response.json(
@@ -61,7 +65,7 @@ export async function POST(req: Request) {
   url.searchParams.set("api_key", apiKey);
 
   const serpRes = await fetch(url.toString(), {
-    signal: AbortSignal.timeout(5000),
+    signal: AbortSignal.timeout(10000),
   });
   if (!serpRes.ok) {
     return Response.json({ error: "Search failed" }, { status: 502 });

@@ -9,6 +9,32 @@ interface ImageDropzoneProps {
   compact?: boolean;
 }
 
+function isUrl(text: string): boolean {
+  try {
+    const url = new URL(text.trim());
+    return url.protocol === "https:" || url.protocol === "http:";
+  } catch {
+    return false;
+  }
+}
+
+async function fetchImageViaProxy(url: string, signal?: AbortSignal): Promise<string> {
+  const res = await fetch("/api/proxy-image", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+    signal,
+  });
+  if (!res.ok) throw new Error("Failed to fetch image");
+  const blob = await res.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read image"));
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function ImageDropzone({
   image,
   isProcessing,
@@ -17,9 +43,6 @@ export function ImageDropzone({
 }: ImageDropzoneProps) {
   const sizeClass = compact ? "h-28" : "aspect-square";
   const [isDragging, setIsDragging] = useState(false);
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlValue, setUrlValue] = useState("");
-  const [urlError, setUrlError] = useState("");
   const [urlLoading, setUrlLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -52,59 +75,35 @@ export function ImageDropzone({
   );
 
   const handlePaste = useCallback(
-    (e: React.ClipboardEvent) => {
+    async (e: React.ClipboardEvent) => {
+      // Check for image files first
       const items = e.clipboardData.items;
       for (const item of items) {
         if (item.type.startsWith("image/")) {
           const file = item.getAsFile();
-          if (file) handleFile(file);
-          return;
+          if (file) { handleFile(file); return; }
+        }
+      }
+      // Check for URL text
+      const text = e.clipboardData.getData("text");
+      if (text && isUrl(text)) {
+        e.preventDefault();
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        setUrlLoading(true);
+        try {
+          const dataUrl = await fetchImageViaProxy(text.trim(), controller.signal);
+          if (!controller.signal.aborted) onImageSelected(dataUrl);
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "AbortError") return;
+        } finally {
+          setUrlLoading(false);
         }
       }
     },
-    [handleFile]
+    [handleFile, onImageSelected]
   );
-
-  const handleUrlSubmit = async () => {
-    const url = urlValue.trim();
-    if (!url) return;
-    try {
-      const parsed = new URL(url);
-      if (parsed.protocol !== "https:" && parsed.protocol !== "http:") {
-        setUrlError("Only https:// and http:// URLs are supported.");
-        return;
-      }
-    } catch {
-      setUrlError("Invalid URL.");
-      return;
-    }
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setUrlError("");
-    setUrlLoading(true);
-    try {
-      const response = await fetch(url, { signal: controller.signal });
-      if (!response.ok) throw new Error("Failed to fetch");
-      const contentType = response.headers.get("content-type");
-      if (!contentType?.startsWith("image/")) throw new Error("Not an image");
-      const blob = await response.blob();
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (typeof reader.result === "string") {
-          onImageSelected(reader.result);
-          setShowUrlInput(false);
-          setUrlValue("");
-        }
-      };
-      reader.readAsDataURL(blob);
-    } catch (e) {
-      if (e instanceof DOMException && e.name === "AbortError") return;
-      setUrlError("Couldn't load that URL. Try downloading the image and dragging it here.");
-    } finally {
-      setUrlLoading(false);
-    }
-  };
 
   if (isProcessing) {
     return (
@@ -117,36 +116,35 @@ export function ImageDropzone({
     );
   }
 
+  if (urlLoading) {
+    return (
+      <div className={`${sizeClass} bg-gray-50 flex items-center justify-center rounded-lg`}>
+        <div className="text-center">
+          <div className="w-6 h-6 border-2 border-accent/40 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <span className="text-xs text-gray-400">Loading image...</span>
+        </div>
+      </div>
+    );
+  }
+
   if (image) {
     return (
       <div
         className={`${sizeClass} bg-white flex items-center justify-center rounded-lg relative group cursor-pointer overflow-hidden`}
         onDrop={handleDrop}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onPaste={handlePaste}
         tabIndex={0}
       >
-        <img
-          src={image}
-          alt="Product"
-          className="max-w-full max-h-full object-contain p-2"
-        />
+        <img src={image} alt="Product" className="max-w-full max-h-full object-contain p-2" />
         <label className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
-          <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">
-            Replace
-          </span>
+          <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Replace</span>
           <input
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
-            }}
+            onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
           />
         </label>
       </div>
@@ -154,81 +152,37 @@ export function ImageDropzone({
   }
 
   return (
-    <div className="space-y-1">
-      <label
-        className={`${sizeClass} border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
-          isDragging
-            ? "border-accent bg-accent-light"
-            : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
-        }`}
-        onDrop={handleDrop}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setIsDragging(true);
-        }}
-        onDragLeave={() => setIsDragging(false)}
-        onPaste={handlePaste}
-        tabIndex={0}
-      >
-        <div className="text-center px-2">
-          <svg
-            className="w-6 h-6 mx-auto mb-1 text-gray-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={1.5}
-              d="M12 4v16m8-8H4"
-            />
-          </svg>
-          <span className="text-[11px] text-gray-400 leading-tight block">
-            Drop image or click
-          </span>
-        </div>
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) handleFile(file);
-          }}
-        />
-      </label>
-      {!showUrlInput ? (
-        <button
-          onClick={() => setShowUrlInput(true)}
-          className="text-[10px] text-gray-300 hover:text-accent transition-colors w-full text-center"
+    <label
+      className={`${sizeClass} border-2 border-dashed rounded-lg flex items-center justify-center cursor-pointer transition-colors ${
+        isDragging
+          ? "border-accent bg-accent-light"
+          : "border-gray-200 hover:border-gray-300 bg-gray-50/50"
+      }`}
+      onDrop={handleDrop}
+      onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      onDragLeave={() => setIsDragging(false)}
+      onPaste={handlePaste}
+      tabIndex={0}
+    >
+      <div className="text-center px-2">
+        <svg
+          className="w-6 h-6 mx-auto mb-1 text-gray-300"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
         >
-          or paste URL
-        </button>
-      ) : (
-        <div className="space-y-1">
-          <div className="flex gap-1">
-            <input
-              type="url"
-              value={urlValue}
-              onChange={(e) => { setUrlValue(e.target.value); setUrlError(""); }}
-              placeholder="https://..."
-              className="flex-1 text-[11px] bg-gray-50 border border-gray-200 rounded px-2 py-1 focus:outline-none focus:border-accent"
-              onKeyDown={(e) => { if (e.key === "Enter") handleUrlSubmit(); }}
-            />
-            <button
-              onClick={handleUrlSubmit}
-              disabled={urlLoading || !urlValue.trim()}
-              className="text-[10px] bg-accent text-white rounded px-2 py-1 disabled:opacity-40"
-            >
-              {urlLoading ? "..." : "Go"}
-            </button>
-          </div>
-          {urlError && (
-            <p className="text-[10px] text-red-400">{urlError}</p>
-          )}
-        </div>
-      )}
-    </div>
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+        </svg>
+        <span className="text-[11px] text-gray-400 leading-tight block">
+          Drop, paste image or URL
+        </span>
+      </div>
+      <input
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
+      />
+    </label>
   );
 }

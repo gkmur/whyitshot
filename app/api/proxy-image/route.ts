@@ -1,3 +1,5 @@
+import { rateLimit } from "@/lib/rate-limit";
+
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const MAX_BYTES = 2_000_000;
 
@@ -21,6 +23,9 @@ function validateProxyUrl(rawUrl: string): URL | null {
 }
 
 export async function POST(req: Request) {
+  const limited = rateLimit("proxy-image", req, 30);
+  if (limited) return limited;
+
   const body: unknown = await req.json().catch(() => null);
   if (!body || typeof body !== "object" || !("url" in body) || typeof (body as { url: unknown }).url !== "string") {
     return Response.json({ error: "Missing url" }, { status: 400 });

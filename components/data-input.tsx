@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { createSKU, type SKU } from "@/types/sku";
+import { createSKU, type SKU, percentOff } from "@/types/sku";
 import { ImageDropzone } from "./image-dropzone";
 import { ImagePanel } from "./image-panel";
 import { removeBg } from "@/lib/remove-bg";
+import { dataUrlToBlobUrl } from "@/lib/blob-url";
 
 interface DataInputProps {
   onAddSingle: (sku: SKU) => void;
@@ -18,138 +19,158 @@ type FieldName = "name" | "msrp" | "price";
 export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }: DataInputProps) {
   const [stagedImage, setStagedImage] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState("");
-  const [panelOpen, setPanelOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [msrpValue, setMsrpValue] = useState("");
+  const [priceValue, setPriceValue] = useState("");
   const [warnings, setWarnings] = useState<Partial<Record<FieldName, string>>>({});
   const nameRef = useRef<HTMLInputElement>(null);
-  const msrpRef = useRef<HTMLInputElement>(null);
-  const priceRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Auto-focus name field on mount when no SKUs exist, and after adding
   useEffect(() => {
-    if (skuCount === 0) {
-      nameRef.current?.focus();
-    }
+    if (skuCount === 0) nameRef.current?.focus();
   }, [skuCount]);
 
-  const validatePrices = () => {
-    const msrp = parseFloat(msrpRef.current?.value ?? "");
-    const price = parseFloat(priceRef.current?.value ?? "");
-    if (msrp > 0 && price > 0 && price > msrp) {
+  // Debounced image suggestions while typing
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const trimmed = nameValue.trim();
+    if (trimmed.length >= 3 && !stagedImage) {
+      debounceRef.current = setTimeout(() => {
+        setSearchQuery(trimmed);
+      }, 400);
+    } else if (trimmed.length < 3) {
+      setSearchQuery("");
+    }
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [nameValue, stagedImage]);
+
+  const validatePrices = (msrp: string, price: string) => {
+    const m = parseFloat(msrp);
+    const p = parseFloat(price);
+    if (m > 0 && p > 0 && p > m) {
       setWarnings((w) => ({ ...w, price: "Offer price is higher than MSRP" }));
     } else {
-      setWarnings((w) => {
-        const { price: _, ...rest } = w;
-        return rest;
-      });
+      setWarnings((w) => { const { price: _, ...rest } = w; return rest; });
     }
   };
 
   const handleAddManual = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const form = e.currentTarget;
-    const data = new FormData(form);
     const imageToProcess = stagedImage;
+    const msrp = parseFloat(msrpValue) || 0;
+    const offerPrice = parseFloat(priceValue) || 0;
     const sku = createSKU({
-      name: (data.get("name") as string) || "Untitled",
-      msrp: parseFloat(data.get("msrp") as string) || 0,
-      offerPrice: parseFloat(data.get("price") as string) || 0,
-      imageUrl: imageToProcess ?? undefined,
+      name: nameValue.trim() || "Untitled",
+      msrp,
+      offerPrice,
+      imageUrl: imageToProcess ? dataUrlToBlobUrl(imageToProcess) : undefined,
       isProcessingImage: bgRemovalEnabled && !!imageToProcess,
     });
     onAddSingle(sku);
-    form.reset();
     setStagedImage(null);
     setNameValue("");
-    setPanelOpen(false);
+    setMsrpValue("");
+    setPriceValue("");
+    setSearchQuery("");
     setWarnings({});
-
-    // Re-focus name field
     requestAnimationFrame(() => nameRef.current?.focus());
 
     if (bgRemovalEnabled && imageToProcess) {
       try {
         const processed = await removeBg(imageToProcess);
-        onUpdate(sku.id, { processedImage: processed, isProcessingImage: false });
+        onUpdate(sku.id, { processedImage: dataUrlToBlobUrl(processed), isProcessingImage: false });
       } catch {
         onUpdate(sku.id, { isProcessingImage: false });
       }
     }
   };
 
+  const showSuggestions = searchQuery.length >= 3 && !stagedImage;
+
+  const msrpNum = parseFloat(msrpValue) || 0;
+  const priceNum = parseFloat(priceValue) || 0;
+  const discount = percentOff(msrpNum, priceNum);
+
   return (
-    <>
-      <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-        <div className="p-4">
-          <form onSubmit={handleAddManual} className="space-y-3">
-            <div className="flex gap-2">
-              <input
-                ref={nameRef}
-                name="name"
-                value={nameValue}
-                onChange={(e) => setNameValue(e.target.value)}
-                placeholder="Product Name"
-                required
-                className="flex-1 text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
-              />
-              {nameValue.trim().length >= 3 && (
-                <button
-                  type="button"
-                  onClick={() => setPanelOpen(true)}
-                  className="px-3 py-2 text-xs text-accent border border-accent/30 rounded-lg hover:bg-accent-light transition-colors whitespace-nowrap"
-                >
-                  Find images
-                </button>
-              )}
-            </div>
-
-            <ImageDropzone
-              image={stagedImage ?? undefined}
-              onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
-              compact
-            />
-
-            <div className="grid grid-cols-2 gap-2">
-              <input
-                ref={msrpRef}
-                name="msrp"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="MSRP"
-                onBlur={validatePrices}
-                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
-              />
-              <input
-                ref={priceRef}
-                name="price"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="Offer Price"
-                onBlur={validatePrices}
-                className="text-sm bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:border-accent"
-              />
-            </div>
-            {warnings.price && (
-              <p className="text-[11px] text-amber-500">{warnings.price}</p>
-            )}
-
-            <button
-              type="submit"
-              className="w-full py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover transition-colors"
-            >
-              Add SKU
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <ImagePanel
-        query={nameValue.trim()}
-        open={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+    <form onSubmit={handleAddManual} className="space-y-4">
+      <input
+        ref={nameRef}
+        name="name"
+        value={nameValue}
+        onChange={(e) => setNameValue(e.target.value)}
+        placeholder="What are you adding?"
+        required
+        className="w-full text-xl font-medium bg-transparent border-0 border-b-2 border-gray-200
+                   px-0 py-2.5 focus:outline-none focus:border-accent
+                   placeholder:text-gray-300 transition-colors"
       />
-    </>
+
+      {showSuggestions ? (
+        <div className="space-y-2">
+          <ImagePanel
+            query={searchQuery}
+            onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+          />
+          <p className="text-[10px] text-gray-300 text-center">or drop / paste an image</p>
+        </div>
+      ) : (
+        <ImageDropzone
+          image={stagedImage ?? undefined}
+          onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+          compact
+        />
+      )}
+
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-300 pointer-events-none">$</span>
+          <input
+            name="msrp"
+            type="number"
+            step="0.01"
+            min="0"
+            value={msrpValue}
+            onChange={(e) => {
+              setMsrpValue(e.target.value);
+              validatePrices(e.target.value, priceValue);
+            }}
+            placeholder="MSRP"
+            className="w-full text-sm bg-gray-50/80 border border-gray-200 rounded-lg pl-6 pr-2 py-2
+                       focus:outline-none focus:border-accent tabular-nums"
+          />
+        </div>
+        <div className="relative flex-1">
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-gray-300 pointer-events-none">$</span>
+          <input
+            name="price"
+            type="number"
+            step="0.01"
+            min="0"
+            value={priceValue}
+            onChange={(e) => {
+              setPriceValue(e.target.value);
+              validatePrices(msrpValue, e.target.value);
+            }}
+            placeholder="Offer"
+            className="w-full text-sm bg-gray-50/80 border border-gray-200 rounded-lg pl-6 pr-2 py-2
+                       focus:outline-none focus:border-accent tabular-nums"
+          />
+        </div>
+        <button
+          type="submit"
+          className="shrink-0 px-5 py-2 bg-accent text-white rounded-lg text-sm font-medium
+                     hover:bg-accent-hover active:scale-[0.97] transition-all"
+        >
+          Add
+        </button>
+      </div>
+      <div className="h-4 -mt-2">
+        {warnings.price ? (
+          <p className="text-[11px] text-amber-500">{warnings.price}</p>
+        ) : discount > 0 ? (
+          <p className="text-[11px] text-accent font-medium">{discount}% off MSRP</p>
+        ) : null}
+      </div>
+    </form>
   );
 }

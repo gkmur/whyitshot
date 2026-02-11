@@ -14,7 +14,7 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "Top SKUs — Visual Generator",
+  title: "Why It's Hot — Top SKUs",
   description: "Generate product card visuals for buyer emails",
 };
 

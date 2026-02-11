@@ -9,7 +9,6 @@ interface CardGridProps {
   onUpdate: (id: string, updates: Partial<SKU>) => void;
   onImageSelected: (id: string, dataUrl: string) => void;
   onRemove: (id: string) => void;
-  onAddEmpty: () => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
 }
 
@@ -18,13 +17,13 @@ export function CardGrid({
   onUpdate,
   onImageSelected,
   onRemove,
-  onAddEmpty,
   onReorder,
 }: CardGridProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [overIndex, setOverIndex] = useState<number | null>(null);
   const dragRef = useRef<{ index: number } | null>(null);
   const overIndexRef = useRef<number | null>(null);
+  const rectsRef = useRef<{ index: number; centerY: number }[]>([]);
   const gridRef = useRef<HTMLDivElement>(null);
   const prevCountRef = useRef(skus.length);
   const [newId, setNewId] = useState<string | null>(null);
@@ -54,22 +53,31 @@ export function CardGrid({
     dragRef.current = { index };
     setDragIndex(index);
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
+
+    // Cache bounding rects once at drag start
+    if (gridRef.current) {
+      const elements = gridRef.current.querySelectorAll("[data-card-index]");
+      rectsRef.current = Array.from(elements).map((el) => {
+        const rect = el.getBoundingClientRect();
+        return {
+          index: parseInt(el.getAttribute("data-card-index") || "0", 10),
+          centerY: rect.top + rect.height / 2,
+        };
+      });
+    }
   };
 
   const handleDragMove = (e: React.PointerEvent) => {
-    if (dragRef.current === null || !gridRef.current) return;
-    const elements = gridRef.current.querySelectorAll("[data-card-index]");
+    if (dragRef.current === null) return;
     let closest = dragRef.current.index;
     let closestDist = Infinity;
-    elements.forEach((el) => {
-      const rect = el.getBoundingClientRect();
-      const centerY = rect.top + rect.height / 2;
-      const dist = Math.abs(e.clientY - centerY);
+    for (const cached of rectsRef.current) {
+      const dist = Math.abs(e.clientY - cached.centerY);
       if (dist < closestDist) {
         closestDist = dist;
-        closest = parseInt(el.getAttribute("data-card-index") || "0", 10);
+        closest = cached.index;
       }
-    });
+    }
     overIndexRef.current = closest;
     setOverIndex(closest);
   };
@@ -81,6 +89,7 @@ export function CardGrid({
     }
     dragRef.current = null;
     overIndexRef.current = null;
+    rectsRef.current = [];
     setDragIndex(null);
     setOverIndex(null);
   };
@@ -126,15 +135,6 @@ export function CardGrid({
           />
         </div>
       ))}
-      <button
-        onClick={onAddEmpty}
-        className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-gray-200 rounded-2xl py-8 text-gray-300 hover:border-accent/40 hover:text-accent transition-colors min-h-[200px]"
-      >
-        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
-        </svg>
-        <span className="text-xs font-medium">Add SKU</span>
-      </button>
     </div>
   );
 }

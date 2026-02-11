@@ -22,3 +22,18 @@ body {
   font-family: var(--font-sans), system-ui, sans-serif;
   background: #fafafa;
 }
+
+.suggestion-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+.suggestion-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.suggestion-scroll::-webkit-scrollbar-thumb {
+  background: #e5e7eb;
+  border-radius: 2px;
+}
+.suggestion-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #e5e7eb transparent;
+}

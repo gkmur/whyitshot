@@ -5,48 +5,33 @@ import { isImageSuggestion, type ImageSuggestion } from "@/types/suggest-images"
 
 interface ImagePanelProps {
   query: string;
-  open: boolean;
-  onClose: () => void;
   onImageSelected: (dataUrl: string) => void;
 }
 
-const VISIBLE_STEP = 5;
+const INITIAL_COUNT = 3;
+const MORE_COUNT = 7;
 
-export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanelProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
+export function ImagePanel({ query, onImageSelected }: ImagePanelProps) {
   const abortRef = useRef<AbortController | null>(null);
   const fullResAbortRef = useRef<AbortController | null>(null);
   const [suggestions, setSuggestions] = useState<ImageSuggestion[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [visibleCount, setVisibleCount] = useState(VISIBLE_STEP);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_COUNT);
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
-  const lastQueryRef = useRef("");
 
-  // Sync dialog open/close with prop
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    if (open && !dialog.open) {
-      dialog.showModal();
-    } else if (!open && dialog.open) {
-      dialog.close();
-    }
-  }, [open]);
-
-  // Fetch suggestions when query changes and panel is open
-  useEffect(() => {
-    if (!open || query.length < 3 || query === lastQueryRef.current) return;
-    lastQueryRef.current = query;
+    if (query.length < 3) return;
 
     abortRef.current?.abort();
+    fullResAbortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
     setSuggestions([]);
     setLoading(true);
     setError(null);
-    setVisibleCount(VISIBLE_STEP);
+    setVisibleCount(INITIAL_COUNT);
     setLoadingIndex(null);
 
     (async () => {
@@ -98,7 +83,9 @@ export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanel
 
         if (count === 0) setError("No images found");
       } catch (e) {
+        if (controller.signal.aborted) return;
         if (e instanceof DOMException && e.name === "AbortError") return;
+        console.error("suggest-images error:", e);
         setError("Couldn't load suggestions");
       } finally {
         setLoading(false);
@@ -106,16 +93,14 @@ export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanel
     })();
 
     return () => controller.abort();
-  }, [open, query]);
+  }, [query]);
 
-  // Reset when panel closes
   useEffect(() => {
-    if (!open) {
+    return () => {
       abortRef.current?.abort();
       fullResAbortRef.current?.abort();
-      lastQueryRef.current = "";
-    }
-  }, [open]);
+    };
+  }, []);
 
   const handleThumbnailClick = useCallback(
     async (suggestion: ImageSuggestion, index: number) => {
@@ -125,7 +110,6 @@ export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanel
       const controller = new AbortController();
       fullResAbortRef.current = controller;
 
-      // Try full-res via proxy, fall back to thumbnail
       if (suggestion.originalUrl) {
         setLoadingIndex(index);
         try {
@@ -145,7 +129,6 @@ export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanel
               reader.readAsDataURL(blob);
             });
             onImageSelected(dataUrl);
-            onClose();
             setLoadingIndex(null);
             return;
           }
@@ -159,9 +142,8 @@ export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanel
       }
 
       onImageSelected(suggestion.dataUrl);
-      onClose();
     },
-    [loadingIndex, onImageSelected, onClose]
+    [loadingIndex, onImageSelected]
   );
 
   const visibleSuggestions = suggestions.slice(0, visibleCount);
@@ -169,73 +151,56 @@ export function ImagePanel({ query, open, onClose, onImageSelected }: ImagePanel
   const showMoreButton = hasMore && !loading;
 
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onClose}
-      className="fixed inset-y-0 right-0 m-0 h-screen w-80 max-w-[90vw] bg-white border-l border-gray-200 shadow-xl p-0 backdrop:bg-black/20 backdrop:backdrop-blur-sm"
-    >
-      <div className="flex flex-col h-full">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <h3 className="text-sm font-semibold text-gray-800">Image suggestions</h3>
-          <button
-            onClick={onClose}
-            className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
-              <path d="M1 1l12 12M13 1L1 13" />
-            </svg>
-          </button>
+    <div className="space-y-2">
+      {error && suggestions.length === 0 && (
+        <p className="text-xs text-gray-400">{error}</p>
+      )}
+
+      {loading && suggestions.length === 0 && (
+        <div className="flex items-center gap-2 py-3">
+          <div className="w-3.5 h-3.5 border-2 border-accent/40 border-t-transparent rounded-full animate-spin" />
+          <p className="text-xs text-gray-400">Finding images...</p>
         </div>
+      )}
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3">
-          {error && suggestions.length === 0 && (
-            <p className="text-xs text-gray-400 text-center py-8">{error}</p>
-          )}
-
-          {visibleSuggestions.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
-              {visibleSuggestions.map((s, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  onClick={() => handleThumbnailClick(s, i)}
-                  disabled={loadingIndex !== null}
-                  className="relative h-28 rounded-lg overflow-hidden border-2 border-gray-200 hover:border-accent transition-colors disabled:opacity-50"
-                >
-                  <img src={s.dataUrl} alt={s.title} className="w-full h-full object-cover" />
-                  {loadingIndex === i && (
-                    <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
-                      <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {loading && (
-            <div className="grid grid-cols-2 gap-2">
-              {Array.from({ length: Math.max(0, VISIBLE_STEP - visibleSuggestions.length) }).map((_, i) => (
-                <div key={`skel-${i}`} className="h-28 bg-gray-100 rounded-lg animate-pulse" />
-              ))}
-            </div>
-          )}
+      {visibleSuggestions.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 suggestion-scroll">
+          {visibleSuggestions.map((s, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => handleThumbnailClick(s, i)}
+              disabled={loadingIndex !== null}
+              className="relative w-20 h-20 shrink-0 rounded-xl overflow-hidden border-2
+                         border-gray-200 hover:border-accent transition-all
+                         disabled:opacity-50 hover:scale-105 active:scale-95"
+            >
+              <img src={s.dataUrl} alt={s.title} className="w-full h-full object-cover" />
+              {loadingIndex === i && (
+                <div className="absolute inset-0 bg-white/70 flex items-center justify-center">
+                  <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                </div>
+              )}
+            </button>
+          ))}
 
           {showMoreButton && (
             <button
               type="button"
-              onClick={() => setVisibleCount((c) => c + VISIBLE_STEP)}
-              className="w-full py-2.5 text-xs text-gray-500 hover:text-accent hover:bg-accent-light rounded-lg transition-colors min-h-[44px]"
+              onClick={() => setVisibleCount((c) => c + MORE_COUNT)}
+              className="w-20 h-20 shrink-0 rounded-xl border-2 border-dashed border-gray-200
+                         flex items-center justify-center text-[10px] text-gray-400
+                         hover:border-accent hover:text-accent transition-colors"
             >
-              More images
+              More
             </button>
           )}
 
           {loading && suggestions.length > 0 && (
-            <p className="text-[10px] text-gray-300 text-center">Loading more...</p>
+            <div className="w-20 h-20 shrink-0 rounded-xl bg-gray-100 animate-pulse" />
           )}
         </div>
-      </div>
-    </dialog>
+      )}
+    </div>
   );
 }

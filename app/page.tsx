@@ -1,11 +1,12 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
-import { type SKU, createSKU } from "@/types/sku";
+import { type SKU } from "@/types/sku";
 import { DataInput } from "@/components/data-input";
 import { CardGrid } from "@/components/card-grid";
 import { ExportControls } from "@/components/export-controls";
 import { removeBg } from "@/lib/remove-bg";
+import { dataUrlToBlobUrl } from "@/lib/blob-url";
 import { loadSession } from "@/lib/storage";
 import { useAutosave } from "@/lib/use-autosave";
 
@@ -51,24 +52,27 @@ export default function Home() {
       const controller = new AbortController();
       bgAbortMapRef.current.set(id, controller);
 
+      const blobUrl = dataUrlToBlobUrl(dataUrl);
+
       setSkus((prev) =>
-        prev.map((s) =>
-          s.id === id
-            ? { ...s, imageUrl: dataUrl, isProcessingImage: bgRemovalEnabled }
-            : s
-        )
+        prev.map((s) => {
+          if (s.id !== id) return s;
+          if (s.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(s.imageUrl);
+          return { ...s, imageUrl: blobUrl, isProcessingImage: bgRemovalEnabled };
+        })
       );
 
       if (bgRemovalEnabled) {
         try {
           const processed = await removeBg(dataUrl, controller.signal);
           if (controller.signal.aborted) return;
+          const processedBlobUrl = dataUrlToBlobUrl(processed);
           setSkus((prev) =>
-            prev.map((s) =>
-              s.id === id
-                ? { ...s, processedImage: processed, isProcessingImage: false }
-                : s
-            )
+            prev.map((s) => {
+              if (s.id !== id) return s;
+              if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
+              return { ...s, processedImage: processedBlobUrl, isProcessingImage: false };
+            })
           );
         } catch {
           if (controller.signal.aborted) return;
@@ -85,9 +89,6 @@ export default function Home() {
     [bgRemovalEnabled]
   );
 
-  const handleAddEmpty = useCallback(() => {
-    setSkus((prev) => [...prev, createSKU({ name: "Untitled" })]);
-  }, []);
 
   const handleClear = () => {
     // Abort all in-flight BG removals
@@ -131,11 +132,11 @@ export default function Home() {
     <div className="min-h-screen">
       <header className="border-b border-gray-200 bg-white">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div>
+          <div className="flex items-baseline gap-2">
             <h1 className="text-lg font-bold text-gray-900 tracking-tight font-[family-name:var(--font-sora)]">
-              Top SKUs
+              Why It&apos;s Hot
             </h1>
-            <p className="text-xs text-gray-400">Visual Generator</p>
+            <span className="text-xs text-gray-400">Top SKUs</span>
           </div>
           <div className="flex items-center gap-3">
             {showUndo && (
@@ -196,19 +197,15 @@ export default function Home() {
                 onUpdate={handleUpdate}
                 onImageSelected={handleImageSelected}
                 onRemove={handleRemove}
-                onAddEmpty={handleAddEmpty}
                 onReorder={handleReorder}
               />
             </div>
           </section>
         )}
 
-        {/* Export Controls */}
+        {/* Export Controls (sticky bottom bar) */}
         {skus.length > 0 && (
-          <section className="space-y-4">
-            <h2 className="text-sm font-semibold text-gray-700">Export</h2>
-            <ExportControls skus={skus} disabled={skus.length === 0} />
-          </section>
+          <ExportControls skus={skus} disabled={skus.length === 0} />
         )}
 
         {/* Empty State */}
@@ -231,7 +228,7 @@ export default function Home() {
             </div>
             <p className="text-sm text-gray-400 mb-1">No SKUs yet</p>
             <p className="text-xs text-gray-300">
-              Paste data from your spreadsheet or add SKUs manually above
+              Add your first product above
             </p>
           </div>
         )}

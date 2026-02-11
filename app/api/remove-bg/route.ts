@@ -1,6 +1,10 @@
+import { rateLimit } from "@/lib/rate-limit";
+
 const REMOVEBG_URL = "https://api.remove.bg/v1.0/removebg";
 
 export async function POST(req: Request) {
+  const limited = rateLimit("remove-bg", req, 5);
+  if (limited) return limited;
   const apiKey = process.env.REMOVEBG_API_KEY;
   if (!apiKey) {
     return Response.json({ error: "Background removal not configured" }, { status: 501 });
