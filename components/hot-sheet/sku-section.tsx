@@ -164,53 +164,19 @@ export function SkuSection({
                 </button>
 
                 {/* Image area */}
-                <div className="w-full aspect-square bg-gray-50 rounded-lg mb-2 flex items-center justify-center overflow-hidden relative">
+                <div className="w-full aspect-square bg-gray-50 rounded-lg mb-1 flex items-center justify-center overflow-hidden relative">
                   {sku.isProcessingImage && (
                     <div className="absolute inset-0 bg-white/70 flex items-center justify-center z-10">
                       <div className="w-5 h-5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
                     </div>
                   )}
                   {sku.imageUrl ? (
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={sku.processedImage || sku.imageUrl}
-                        alt={sku.name}
-                        className="w-full h-full object-contain"
-                      />
-                      {/* Image action buttons — hover reveal */}
-                      <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
-                        {!sku.processedImage && !sku.isProcessingImage && (
-                          <button
-                            onClick={() => onRemoveBg(sku.id)}
-                            title="Remove background"
-                            className="w-6 h-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-accent hover:border-accent transition-colors"
-                          >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setSearchOpenFor(sku.id)}
-                          title="Search for image"
-                          className="w-6 h-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-accent hover:border-accent transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => onClearImage(sku.id)}
-                          title="Clear image"
-                          className="w-6 h-6 rounded-md bg-white/90 border border-gray-200 flex items-center justify-center text-gray-500 hover:text-red-400 hover:border-red-300 transition-colors"
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    </>
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={sku.processedImage || sku.imageUrl}
+                      alt={sku.name}
+                      className="w-full h-full object-contain"
+                    />
                   ) : (
                     <div className="flex flex-col items-center gap-2">
                       <span className="text-xs text-gray-300">Drop or paste image</span>
@@ -223,6 +189,36 @@ export function SkuSection({
                     </div>
                   )}
                 </div>
+
+                {/* Image toolbar — visible when image exists */}
+                {sku.imageUrl && (
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <button
+                      onClick={() => setSearchOpenFor(sku.id)}
+                      className="text-[10px] text-gray-400 hover:text-accent transition-colors"
+                    >
+                      Replace
+                    </button>
+                    <span className="text-gray-200">·</span>
+                    {!sku.processedImage && !sku.isProcessingImage && (
+                      <>
+                        <button
+                          onClick={() => onRemoveBg(sku.id)}
+                          className="text-[10px] text-gray-400 hover:text-accent transition-colors"
+                        >
+                          Remove bg
+                        </button>
+                        <span className="text-gray-200">·</span>
+                      </>
+                    )}
+                    <button
+                      onClick={() => onClearImage(sku.id)}
+                      className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                )}
 
                 {/* Name */}
                 <input
