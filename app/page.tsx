@@ -5,15 +5,18 @@ import { type SKU } from "@/types/sku";
 import { DataInput } from "@/components/data-input";
 import { CardGrid } from "@/components/card-grid";
 import { ExportControls } from "@/components/export-controls";
+import { GhostPreview } from "@/components/ghost-preview";
 import { removeBg } from "@/lib/remove-bg";
 import { dataUrlToBlobUrl } from "@/lib/blob-url";
 import { loadSession } from "@/lib/storage";
+import { loadSampleData } from "@/lib/sample-data";
 import { useAutosave } from "@/lib/use-autosave";
 
 export default function Home() {
   const [skus, setSkus] = useState<SKU[]>(() => loadSession() ?? []);
   const [bgRemovalEnabled, setBgRemovalEnabled] = useState(true);
   const [showUndo, setShowUndo] = useState(false);
+  const [loadingSamples, setLoadingSamples] = useState(false);
   const lastClearedRef = useRef<SKU[]>([]);
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bgAbortMapRef = useRef<Map<string, AbortController>>(new Map());
@@ -128,9 +131,23 @@ export default function Home() {
     }
   };
 
+  const handleLoadSamples = async () => {
+    if (loadingSamples) return;
+    setLoadingSamples(true);
+    try {
+      const samples = await loadSampleData();
+      setSkus((prev) => [...prev, ...samples]);
+    } finally {
+      setLoadingSamples(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
-      <header className="border-b border-gray-200 bg-white">
+      <header
+        className="border-b border-gray-200 bg-white"
+        style={{ animation: "var(--animate-fade-in-up)", animationDelay: "0ms" }}
+      >
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-baseline gap-2">
             <h1 className="text-lg font-bold text-gray-900 tracking-tight font-[family-name:var(--font-sora)]">
@@ -161,7 +178,10 @@ export default function Home() {
 
       <main className="max-w-5xl mx-auto px-6 py-10 space-y-12">
         {/* Data Input */}
-        <div className="max-w-md mx-auto">
+        <div
+          className="max-w-md mx-auto"
+          style={{ animation: "var(--animate-fade-in-up)", animationDelay: "80ms" }}
+        >
           <DataInput
             onAddSingle={handleAddSingle}
             onUpdate={handleUpdate}
@@ -172,7 +192,10 @@ export default function Home() {
 
         {/* Card Preview (editable) */}
         {skus.length > 0 && (
-          <section className="space-y-4">
+          <section
+            className="space-y-4"
+            style={{ animation: "var(--animate-fade-in-up)", animationDelay: "180ms" }}
+          >
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-gray-700">
                 Preview
@@ -203,33 +226,32 @@ export default function Home() {
           </section>
         )}
 
-        {/* Export Controls (sticky bottom bar) */}
+        {/* Export Controls */}
         {skus.length > 0 && (
-          <ExportControls skus={skus} disabled={skus.length === 0} />
+          <div style={{ animation: "var(--animate-fade-in-up)", animationDelay: "320ms" }}>
+            <ExportControls skus={skus} disabled={skus.length === 0} />
+          </div>
         )}
 
         {/* Empty State */}
         {skus.length === 0 && (
-          <div className="text-center py-16">
-            <div className="inline-block p-4 bg-gray-100 rounded-2xl mb-4">
-              <svg
-                className="w-8 h-8 text-gray-300"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+          <div
+            className="space-y-8"
+            style={{ animation: "var(--animate-fade-in-up)", animationDelay: "180ms" }}
+          >
+            <div className="text-center">
+              <p className="text-sm text-gray-400 mb-3">
+                Add a product above, or
+              </p>
+              <button
+                onClick={handleLoadSamples}
+                disabled={loadingSamples}
+                className="text-sm text-accent hover:text-accent-hover font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                />
-              </svg>
+                {loadingSamples ? "Loading…" : "see what this looks like →"}
+              </button>
             </div>
-            <p className="text-sm text-gray-400 mb-1">No SKUs yet</p>
-            <p className="text-xs text-gray-300">
-              Add your first product above
-            </p>
+            <GhostPreview />
           </div>
         )}
       </main>

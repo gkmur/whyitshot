@@ -27,7 +27,10 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    if (skuCount === 0) nameRef.current?.focus();
+    if (skuCount === 0) {
+      const t = setTimeout(() => nameRef.current?.focus(), 480);
+      return () => clearTimeout(t);
+    }
   }, [skuCount]);
 
   // Debounced image suggestions while typing
@@ -135,7 +138,7 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
               validatePrices(e.target.value, priceValue);
             }}
             placeholder="MSRP"
-            className="w-full text-sm bg-gray-50/80 border border-gray-200 rounded-lg pl-6 pr-2 py-2
+            className="w-full text-sm bg-gray-50/80 border border-gray-100 rounded-lg pl-6 pr-2 py-2
                        focus:outline-none focus:border-accent tabular-nums"
           />
         </div>
@@ -152,14 +155,14 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
               validatePrices(msrpValue, e.target.value);
             }}
             placeholder="Offer"
-            className="w-full text-sm bg-gray-50/80 border border-gray-200 rounded-lg pl-6 pr-2 py-2
+            className="w-full text-sm bg-gray-50/80 border border-gray-100 rounded-lg pl-6 pr-2 py-2
                        focus:outline-none focus:border-accent tabular-nums"
           />
         </div>
         <button
           type="submit"
-          className="shrink-0 px-5 py-2 bg-accent text-white rounded-lg text-sm font-medium
-                     hover:bg-accent-hover active:scale-[0.97] transition-all"
+          className="shrink-0 px-5 py-2 bg-accent text-white rounded-full text-sm font-medium
+                     hover:bg-accent-hover active:scale-[0.97] transition-colors"
         >
           Add
         </button>

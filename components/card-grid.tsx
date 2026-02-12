@@ -25,25 +25,32 @@ export function CardGrid({
   const overIndexRef = useRef<number | null>(null);
   const rectsRef = useRef<{ index: number; centerY: number }[]>([]);
   const gridRef = useRef<HTMLDivElement>(null);
-  const prevCountRef = useRef(skus.length);
-  const [newId, setNewId] = useState<string | null>(null);
 
-  // Detect new card and scroll to it
+  const prevIdsRef = useRef<Set<string>>(new Set(skus.map((s) => s.id)));
+  const [newIds, setNewIds] = useState<Set<string>>(new Set());
+
+  // Detect new cards by diffing ID sets
   useEffect(() => {
-    if (skus.length > prevCountRef.current) {
-      const newest = skus[skus.length - 1];
-      setNewId(newest.id);
-      const timer = setTimeout(() => setNewId(null), 350);
-
-      requestAnimationFrame(() => {
-        const el = gridRef.current?.querySelector(`[data-card-id="${newest.id}"]`);
-        el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-      });
-
-      prevCountRef.current = skus.length;
-      return () => clearTimeout(timer);
+    const currentIds = new Set(skus.map((s) => s.id));
+    const added = new Set<string>();
+    for (const id of currentIds) {
+      if (!prevIdsRef.current.has(id)) added.add(id);
     }
-    prevCountRef.current = skus.length;
+    prevIdsRef.current = currentIds;
+
+    if (added.size === 0) return;
+    setNewIds(added);
+    const timer = setTimeout(() => setNewIds(new Set()), 500);
+
+    requestAnimationFrame(() => {
+      const lastNew = skus.filter((s) => added.has(s.id)).pop();
+      if (lastNew) {
+        const el = gridRef.current?.querySelector(`[data-card-id="${lastNew.id}"]`);
+        el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    });
+
+    return () => clearTimeout(timer);
   }, [skus]);
 
   if (skus.length === 0) return null;
@@ -101,15 +108,25 @@ export function CardGrid({
       onPointerMove={handleDragMove}
       onPointerUp={handleDragEnd}
     >
-      {skus.map((sku, i) => (
+      {skus.map((sku, i) => {
+        const isDragging = dragIndex === i;
+        const isDropTarget = overIndex === i && dragIndex !== null && dragIndex !== i;
+        const isNew = newIds.has(sku.id);
+        const newIndex = isNew ? [...newIds].indexOf(sku.id) : -1;
+
+        return (
         <div
           key={sku.id}
           data-card-index={i}
           data-card-id={sku.id}
-          className={`relative group transition-transform ${
-            dragIndex === i ? "scale-105 opacity-70 z-10 shadow-lg" : ""
-          } ${overIndex === i && dragIndex !== null && dragIndex !== i ? "ring-2 ring-accent/30 rounded-2xl" : ""}`}
-          style={newId === sku.id ? { animation: "var(--animate-card-in)" } : undefined}
+          className={`relative group shadow-sm ${
+            isDragging
+              ? "scale-105 opacity-70 z-10 shadow-xl"
+              : dragIndex !== null
+                ? ""
+                : "hover:scale-[1.008] hover:shadow-md transition-transform transition-shadow duration-200"
+          } ${isDropTarget ? "ring-2 ring-accent/30 rounded-2xl scale-[1.01]" : ""}`}
+          style={isNew ? { animation: "var(--animate-card-in)", animationDelay: `${newIndex * 80}ms` } : undefined}
         >
           {skus.length > 1 && (
             <div
@@ -134,7 +151,8 @@ export function CardGrid({
             onRemove={onRemove}
           />
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
