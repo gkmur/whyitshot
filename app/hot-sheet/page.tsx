@@ -1,14 +1,17 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   type HotSheet,
   type ListingInfo,
   type HotSheetSKU,
+  type PressQuote,
+  type TiktokEntry,
   createHotSheet,
   createPressQuote,
   createTiktokEntry,
+  createHotSheetSKU,
 } from "@/types/hot-sheet";
 import { loadHotSheet, saveHotSheet } from "@/lib/hot-sheet-storage";
 import { useAutosave } from "@/lib/use-autosave";
@@ -29,15 +32,95 @@ export default function HotSheetPage() {
     setSheet((prev) => ({ ...prev, [key]: value, updatedAt: new Date().toISOString() }));
   }, []);
 
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+  const [showVerifyBanner, setShowVerifyBanner] = useState(sheet.aiGenerated);
+  const abortRef = useRef<AbortController | null>(null);
+
   const hasContent =
     sheet.brandName.trim() !== "" ||
     sheet.whyItsHot.trim() !== "" ||
     sheet.pressFeatures.length > 0 ||
     sheet.topSkus.length > 0;
 
+  const handleGenerate = async () => {
+    if (!sheet.brandName.trim()) return;
+    if (hasContent && !window.confirm("This will replace all current content. Continue?")) return;
+
+    setIsGenerating(true);
+    setGenerateError(null);
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    try {
+      const res = await fetch("/api/generate-hotsheet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ brandName: sheet.brandName, retailer: sheet.retailer }),
+        signal: controller.signal,
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({ error: "Generation failed" }));
+        setGenerateError((data as { error?: string }).error || `Error ${res.status}`);
+        return;
+      }
+
+      const data: unknown = await res.json();
+      if (!data || typeof data !== "object") {
+        setGenerateError("Invalid response from AI");
+        return;
+      }
+
+      const d = data as Record<string, unknown>;
+      const now = new Date().toISOString();
+
+      setSheet((prev) => ({
+        ...prev,
+        whyItsHot: typeof d.whyItsHot === "string" ? d.whyItsHot : prev.whyItsHot,
+        distribution: typeof d.distribution === "string" ? d.distribution : prev.distribution,
+        listingInfo: d.listingInfo && typeof d.listingInfo === "object"
+          ? { ...prev.listingInfo, ...(d.listingInfo as Partial<ListingInfo>) }
+          : prev.listingInfo,
+        pressFeatures: Array.isArray(d.pressFeatures)
+          ? (d.pressFeatures as Partial<PressQuote>[]).map((p) => createPressQuote({ text: p.text ?? "", source: p.source ?? "", url: p.url }))
+          : prev.pressFeatures,
+        viralTiktoks: Array.isArray(d.viralTiktoks)
+          ? (d.viralTiktoks as Partial<TiktokEntry>[]).map((t) => createTiktokEntry({ description: t.description ?? "", stats: t.stats ?? "" }))
+          : prev.viralTiktoks,
+        topSkus: Array.isArray(d.topSkus)
+          ? (d.topSkus as Partial<HotSheetSKU>[]).map((s) => createHotSheetSKU({
+              name: typeof s.name === "string" ? s.name : "",
+              msrp: typeof s.msrp === "number" ? s.msrp : 0,
+              offerPrice: typeof s.offerPrice === "number" ? s.offerPrice : 0,
+              rating: typeof s.rating === "string" ? s.rating : undefined,
+              reviewHighlight: typeof s.reviewHighlight === "string" ? s.reviewHighlight : undefined,
+            }))
+          : prev.topSkus,
+        aiGenerated: true,
+        updatedAt: now,
+      }));
+      setShowVerifyBanner(true);
+    } catch (err) {
+      if ((err as Error).name === "AbortError") return;
+      setGenerateError("Generation failed. Try again.");
+    } finally {
+      setIsGenerating(false);
+      abortRef.current = null;
+    }
+  };
+
+  const handleCancelGenerate = () => {
+    abortRef.current?.abort();
+    setIsGenerating(false);
+  };
+
   const handleStartNew = () => {
     if (!hasContent || window.confirm("Start a new Hot Sheet? This will replace all current content.")) {
       setSheet(createHotSheet());
+      setShowVerifyBanner(false);
+      setGenerateError(null);
     }
   };
 
@@ -150,6 +233,53 @@ export default function HotSheetPage() {
         </div>
       </header>
 
+      {showVerifyBanner && (
+        <div className="bg-amber-50 border-b border-amber-200">
+          <div className="max-w-3xl mx-auto px-6 py-2.5 flex items-center justify-between">
+            <span className="text-xs text-amber-700 font-medium">
+              AI-generated — verify data before sending
+            </span>
+            <button
+              onClick={() => setShowVerifyBanner(false)}
+              className="text-xs text-amber-500 hover:text-amber-700 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {generateError && (
+        <div className="bg-red-50 border-b border-red-200">
+          <div className="max-w-3xl mx-auto px-6 py-2.5 flex items-center justify-between">
+            <span className="text-xs text-red-700">{generateError}</span>
+            <button
+              onClick={() => setGenerateError(null)}
+              className="text-xs text-red-500 hover:text-red-700 transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isGenerating && (
+        <div className="bg-accent/5 border-b border-accent/20">
+          <div className="max-w-3xl mx-auto px-6 py-2.5 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="w-3.5 h-3.5 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <span className="text-xs text-accent font-medium">Generating Hot Sheet…</span>
+            </div>
+            <button
+              onClick={handleCancelGenerate}
+              className="text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="max-w-3xl mx-auto px-6 py-10 space-y-8">
         {/* Brand + Retailer */}
         <section style={{ animation: "var(--animate-fade-in-up)", animationDelay: "40ms" }}>
@@ -159,7 +289,9 @@ export default function HotSheetPage() {
             onBrandNameChange={(v) => update("brandName", v)}
             onRetailerChange={(v) => update("retailer", v)}
             onStartNew={handleStartNew}
+            onGenerate={handleGenerate}
             hasContent={hasContent}
+            isGenerating={isGenerating}
           />
         </section>
 

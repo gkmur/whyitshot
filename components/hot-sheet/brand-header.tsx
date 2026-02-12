@@ -10,7 +10,9 @@ interface BrandHeaderProps {
   onBrandNameChange: (value: string) => void;
   onRetailerChange: (value: string) => void;
   onStartNew: () => void;
+  onGenerate: () => void;
   hasContent: boolean;
+  isGenerating: boolean;
 }
 
 export function BrandHeader({
@@ -19,7 +21,9 @@ export function BrandHeader({
   onBrandNameChange,
   onRetailerChange,
   onStartNew,
+  onGenerate,
   hasContent,
+  isGenerating,
 }: BrandHeaderProps) {
   const [customRetailer, setCustomRetailer] = useState(
     retailer && !RETAILERS.includes(retailer as (typeof RETAILERS)[number])
@@ -82,14 +86,30 @@ export function BrandHeader({
             )}
           </div>
         </div>
-        {hasContent && (
+        <div className="flex items-center gap-3 shrink-0">
           <button
-            onClick={onStartNew}
-            className="text-xs text-gray-400 hover:text-red-500 transition-colors whitespace-nowrap"
+            onClick={onGenerate}
+            disabled={!brandName.trim() || isGenerating}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-accent hover:bg-accent-hover rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Start new
+            {isGenerating ? (
+              <>
+                <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                Generating…
+              </>
+            ) : (
+              "Generate"
+            )}
           </button>
-        )}
+          {hasContent && (
+            <button
+              onClick={onStartNew}
+              className="text-xs text-gray-400 hover:text-red-500 transition-colors whitespace-nowrap"
+            >
+              Start new
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
