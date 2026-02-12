@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import Link from "next/link";
 import { type SKU } from "@/types/sku";
 import { DataInput } from "@/components/data-input";
 import { CardGrid } from "@/components/card-grid";
@@ -8,7 +9,7 @@ import { ExportControls } from "@/components/export-controls";
 import { GhostPreview } from "@/components/ghost-preview";
 import { removeBg } from "@/lib/remove-bg";
 import { dataUrlToBlobUrl } from "@/lib/blob-url";
-import { loadSession } from "@/lib/storage";
+import { loadSession, saveSession } from "@/lib/storage";
 import { loadSampleData } from "@/lib/sample-data";
 import { useAutosave } from "@/lib/use-autosave";
 
@@ -21,7 +22,7 @@ export default function Home() {
   const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bgAbortMapRef = useRef<Map<string, AbortController>>(new Map());
 
-  useAutosave(skus);
+  useAutosave(skus, saveSession);
 
   const handleAddSingle = useCallback((sku: SKU) => {
     setSkus((prev) => [...prev, sku]);
@@ -156,6 +157,12 @@ export default function Home() {
             <span className="text-xs text-gray-400">Top SKUs</span>
           </div>
           <div className="flex items-center gap-3">
+            <Link
+              href="/hot-sheet"
+              className="text-xs text-gray-400 hover:text-accent transition-colors"
+            >
+              Hot Sheet editor →
+            </Link>
             {showUndo && (
               <button
                 onClick={handleUndoClear}
