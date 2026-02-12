@@ -1,3 +1,5 @@
+"use client";
+
 export function GhostPreview() {
   const heights = [140, 160, 150];
   return (
