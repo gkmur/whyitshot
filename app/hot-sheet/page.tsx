@@ -17,6 +17,8 @@ import { ProseSection } from "@/components/hot-sheet/prose-section";
 import { ListingInfoSection } from "@/components/hot-sheet/listing-info";
 import { ListSection } from "@/components/hot-sheet/list-section";
 import { SkuSection } from "@/components/hot-sheet/sku-section";
+import { ExportControls } from "@/components/hot-sheet/export-controls";
+import { filledSectionCount } from "@/lib/hot-sheet-export";
 
 export default function HotSheetPage() {
   const [sheet, setSheet] = useState<HotSheet>(() => loadHotSheet() ?? createHotSheet());
@@ -233,6 +235,8 @@ export default function HotSheetPage() {
           />
         </section>
       </main>
+
+      {filledSectionCount(sheet) > 0 && <ExportControls sheet={sheet} />}
     </div>
   );
 }
