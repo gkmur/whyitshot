@@ -39,10 +39,10 @@ export function CardGrid({
     prevIdsRef.current = currentIds;
 
     if (added.size === 0) return;
-    setNewIds(added);
     const timer = setTimeout(() => setNewIds(new Set()), 500);
 
-    requestAnimationFrame(() => {
+    const rafId = requestAnimationFrame(() => {
+      setNewIds(added);
       const lastNew = skus.filter((s) => added.has(s.id)).pop();
       if (lastNew) {
         const el = gridRef.current?.querySelector(`[data-card-id="${lastNew.id}"]`);
@@ -50,7 +50,10 @@ export function CardGrid({
       }
     });
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      cancelAnimationFrame(rafId);
+    };
   }, [skus]);
 
   if (skus.length === 0) return null;

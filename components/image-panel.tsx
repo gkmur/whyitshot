@@ -175,6 +175,7 @@ export function ImagePanel({ query, onImageSelected }: ImagePanelProps) {
                          border-gray-200 hover:border-accent transition-all
                          disabled:opacity-50 hover:scale-105 active:scale-95"
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={s.dataUrl} alt={s.title} className="w-full h-full object-cover" />
               {loadingIndex === i && (
                 <div className="absolute inset-0 bg-white/70 flex items-center justify-center">

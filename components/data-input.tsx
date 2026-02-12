@@ -41,8 +41,6 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
       debounceRef.current = setTimeout(() => {
         setSearchQuery(trimmed);
       }, 400);
-    } else if (trimmed.length < 3) {
-      setSearchQuery("");
     }
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [nameValue, stagedImage]);
@@ -53,8 +51,25 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
     if (m > 0 && p > 0 && p > m) {
       setWarnings((w) => ({ ...w, price: "Offer price is higher than MSRP" }));
     } else {
-      setWarnings((w) => { const { price: _, ...rest } = w; return rest; });
+      setWarnings((w) => {
+        if (!("price" in w)) return w;
+        const next = { ...w };
+        delete next.price;
+        return next;
+      });
     }
+  };
+
+  const handleNameChange = (value: string) => {
+    setNameValue(value);
+    if (value.trim().length < 3) {
+      setSearchQuery("");
+    }
+  };
+
+  const handleImageSelected = (dataUrl: string) => {
+    setStagedImage(dataUrl);
+    setSearchQuery("");
   };
 
   const handleAddManual = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -100,7 +115,7 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
         ref={nameRef}
         name="name"
         value={nameValue}
-        onChange={(e) => setNameValue(e.target.value)}
+        onChange={(e) => handleNameChange(e.target.value)}
         placeholder="What are you adding?"
         required
         className="w-full text-xl font-medium bg-transparent border-0 border-b-2 border-gray-200
@@ -112,14 +127,14 @@ export function DataInput({ onAddSingle, onUpdate, bgRemovalEnabled, skuCount }:
         <div className="space-y-2">
           <ImagePanel
             query={searchQuery}
-            onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+            onImageSelected={handleImageSelected}
           />
           <p className="text-[10px] text-gray-300 text-center">or drop / paste an image</p>
         </div>
       ) : (
         <ImageDropzone
           image={stagedImage ?? undefined}
-          onImageSelected={(dataUrl) => setStagedImage(dataUrl)}
+          onImageSelected={handleImageSelected}
           compact
         />
       )}

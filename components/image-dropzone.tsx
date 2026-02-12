@@ -137,6 +137,7 @@ export function ImageDropzone({
         onPaste={handlePaste}
         tabIndex={0}
       >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={image} alt="Product" className="max-w-full max-h-full object-contain p-2" />
         <label className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
           <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Replace</span>

@@ -7,7 +7,9 @@ export function useAutosave(skus: SKU[], delay = 500) {
   const latestRef = useRef(skus);
   const isFirstRender = useRef(true);
 
-  latestRef.current = skus;
+  useEffect(() => {
+    latestRef.current = skus;
+  }, [skus]);
 
   useEffect(() => {
     if (isFirstRender.current) {

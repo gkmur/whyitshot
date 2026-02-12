@@ -119,6 +119,7 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
               <h3 className="text-sm font-semibold text-gray-700">Export Preview</h3>
               <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
             </div>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="Export preview" className="w-full rounded-lg border border-gray-100" />
             <div className="flex gap-3 justify-end">
               <button onClick={handleDismiss} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">

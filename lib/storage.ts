@@ -22,7 +22,7 @@ function isSessionData(value: unknown): value is { version: 1; skus: unknown[] }
 export function saveSession(skus: SKU[]): boolean {
   if (typeof window === "undefined") return false;
   try {
-    const stripped = skus.map(({ imageUrl, processedImage, isProcessingImage, ...rest }) => rest);
+    const stripped = skus.map(({ id, name, msrp, offerPrice }) => ({ id, name, msrp, offerPrice }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, skus: stripped }));
     return true;
   } catch {
