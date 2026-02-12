@@ -14,6 +14,8 @@ import {
   createHotSheetSKU,
 } from "@/types/hot-sheet";
 import { loadHotSheet, saveHotSheet } from "@/lib/hot-sheet-storage";
+import { removeBg } from "@/lib/remove-bg";
+import { dataUrlToBlobUrl } from "@/lib/blob-url";
 import { useAutosave } from "@/lib/use-autosave";
 import { BrandHeader } from "@/components/hot-sheet/brand-header";
 import { ProseSection } from "@/components/hot-sheet/prose-section";
@@ -203,6 +205,104 @@ export default function HotSheetPage() {
     }));
   }, []);
 
+  // Image handling — mirrors app/page.tsx pattern
+  const bgAbortMapRef = useRef<Map<string, AbortController>>(new Map());
+
+  const runRemoveBg = useCallback(async (skuId: string, dataUrl: string) => {
+    bgAbortMapRef.current.get(skuId)?.abort();
+    const controller = new AbortController();
+    bgAbortMapRef.current.set(skuId, controller);
+
+    try {
+      const processed = await removeBg(dataUrl, controller.signal);
+      if (controller.signal.aborted) return;
+      const processedBlobUrl = dataUrlToBlobUrl(processed);
+      setSheet((prev) => ({
+        ...prev,
+        topSkus: prev.topSkus.map((s) => {
+          if (s.id !== skuId) return s;
+          if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
+          return { ...s, processedImage: processedBlobUrl, isProcessingImage: false };
+        }),
+        updatedAt: new Date().toISOString(),
+      }));
+    } catch {
+      if (controller.signal.aborted) return;
+      setSheet((prev) => ({
+        ...prev,
+        topSkus: prev.topSkus.map((s) =>
+          s.id === skuId ? { ...s, isProcessingImage: false } : s
+        ),
+        updatedAt: new Date().toISOString(),
+      }));
+    } finally {
+      bgAbortMapRef.current.delete(skuId);
+    }
+  }, []);
+
+  const handleImageSelected = useCallback((skuId: string, dataUrl: string) => {
+    bgAbortMapRef.current.get(skuId)?.abort();
+    const blobUrl = dataUrlToBlobUrl(dataUrl);
+
+    setSheet((prev) => ({
+      ...prev,
+      topSkus: prev.topSkus.map((s) => {
+        if (s.id !== skuId) return s;
+        if (s.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(s.imageUrl);
+        if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
+        return { ...s, imageUrl: blobUrl, processedImage: undefined, isProcessingImage: true };
+      }),
+      updatedAt: new Date().toISOString(),
+    }));
+
+    runRemoveBg(skuId, dataUrl);
+  }, [runRemoveBg]);
+
+  const handleClearImage = useCallback((skuId: string) => {
+    bgAbortMapRef.current.get(skuId)?.abort();
+    bgAbortMapRef.current.delete(skuId);
+    setSheet((prev) => ({
+      ...prev,
+      topSkus: prev.topSkus.map((s) => {
+        if (s.id !== skuId) return s;
+        if (s.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(s.imageUrl);
+        if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
+        return { ...s, imageUrl: undefined, processedImage: undefined, isProcessingImage: false };
+      }),
+      updatedAt: new Date().toISOString(),
+    }));
+  }, []);
+
+  const handleRemoveBgManual = useCallback((skuId: string) => {
+    setSheet((prev) => {
+      const sku = prev.topSkus.find((s) => s.id === skuId);
+      if (!sku?.imageUrl) return prev;
+      return {
+        ...prev,
+        topSkus: prev.topSkus.map((s) =>
+          s.id === skuId ? { ...s, isProcessingImage: true } : s
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+    });
+    // Read current imageUrl from state
+    const sku = sheet.topSkus.find((s) => s.id === skuId);
+    if (sku?.imageUrl) {
+      // Convert blob URL back to data URL for the API
+      fetch(sku.imageUrl)
+        .then((r) => r.blob())
+        .then((blob) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") {
+              runRemoveBg(skuId, reader.result);
+            }
+          };
+          reader.readAsDataURL(blob);
+        });
+    }
+  }, [sheet.topSkus, runRemoveBg]);
+
   const handleListingInfoChange = useCallback((data: ListingInfo) => {
     setSheet((prev) => ({
       ...prev,
@@ -364,6 +464,9 @@ export default function HotSheetPage() {
             onAdd={handleAddSku}
             onRemove={handleRemoveSku}
             onUpdate={handleUpdateSku}
+            onImageSelected={handleImageSelected}
+            onClearImage={handleClearImage}
+            onRemoveBg={handleRemoveBgManual}
           />
         </section>
       </main>

@@ -41,6 +41,7 @@ export interface HotSheetSKU {
   offerPrice: number;
   imageUrl?: string;
   processedImage?: string;
+  isProcessingImage?: boolean;
   rating?: string;
   reviewHighlight?: string;
 }
