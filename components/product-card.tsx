@@ -10,6 +10,8 @@ interface ProductCardProps {
   onUpdate: (id: string, updates: Partial<SKU>) => void;
   onImageSelected: (id: string, dataUrl: string) => void;
   onRemove: (id: string) => void;
+  onClearImage: (id: string) => void;
+  onRemoveBg: (id: string) => void;
 }
 
 function EditablePrice({
@@ -69,6 +71,8 @@ export const ProductCard = React.memo(function ProductCard({
   onUpdate,
   onImageSelected,
   onRemove,
+  onClearImage,
+  onRemoveBg,
 }: ProductCardProps) {
   const discount = percentOff(sku.msrp, sku.offerPrice);
   const [showSearch, setShowSearch] = useState(false);
@@ -105,6 +109,35 @@ export const ProductCard = React.memo(function ProductCard({
             setShowSearch(false);
           }}
         />
+
+        {hasImage && (
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowSearch((v) => !v)}
+              className="text-[10px] text-gray-400 hover:text-accent transition-colors"
+            >
+              Search
+            </button>
+            <span className="text-gray-200">·</span>
+            {!sku.processedImage && !sku.isProcessingImage && (
+              <>
+                <button
+                  onClick={() => onRemoveBg(sku.id)}
+                  className="text-[10px] text-gray-400 hover:text-accent transition-colors"
+                >
+                  Remove bg
+                </button>
+                <span className="text-gray-200">·</span>
+              </>
+            )}
+            <button
+              onClick={() => { onClearImage(sku.id); setShowSearch(false); }}
+              className="text-[10px] text-gray-400 hover:text-red-400 transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
         {showSearch && (
           <div className="w-full">

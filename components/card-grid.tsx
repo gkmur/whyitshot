@@ -9,6 +9,8 @@ interface CardGridProps {
   onUpdate: (id: string, updates: Partial<SKU>) => void;
   onImageSelected: (id: string, dataUrl: string) => void;
   onRemove: (id: string) => void;
+  onClearImage: (id: string) => void;
+  onRemoveBg: (id: string) => void;
   onReorder: (fromIndex: number, toIndex: number) => void;
 }
 
@@ -17,6 +19,8 @@ export function CardGrid({
   onUpdate,
   onImageSelected,
   onRemove,
+  onClearImage,
+  onRemoveBg,
   onReorder,
 }: CardGridProps) {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -152,6 +156,8 @@ export function CardGrid({
             onUpdate={onUpdate}
             onImageSelected={onImageSelected}
             onRemove={onRemove}
+            onClearImage={onClearImage}
+            onRemoveBg={onRemoveBg}
           />
         </div>
         );

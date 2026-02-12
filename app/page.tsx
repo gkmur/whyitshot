@@ -94,6 +94,66 @@ export default function Home() {
   );
 
 
+  const handleClearImage = useCallback((id: string) => {
+    bgAbortMapRef.current.get(id)?.abort();
+    bgAbortMapRef.current.delete(id);
+    setSkus((prev) =>
+      prev.map((s) => {
+        if (s.id !== id) return s;
+        if (s.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(s.imageUrl);
+        if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
+        return { ...s, imageUrl: undefined, processedImage: undefined, isProcessingImage: false };
+      })
+    );
+  }, []);
+
+  const handleRemoveBgManual = useCallback(
+    (id: string) => {
+      setSkus((prev) =>
+        prev.map((s) =>
+          s.id === id && s.imageUrl ? { ...s, isProcessingImage: true } : s
+        )
+      );
+      setSkus((prev) => {
+        const sku = prev.find((s) => s.id === id);
+        if (!sku?.imageUrl) return prev;
+        // Fetch the blob URL back to data URL for the API
+        fetch(sku.imageUrl)
+          .then((r) => r.blob())
+          .then((blob) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+              if (typeof reader.result !== "string") return;
+              const controller = new AbortController();
+              bgAbortMapRef.current.set(id, controller);
+              removeBg(reader.result, controller.signal)
+                .then((processed) => {
+                  if (controller.signal.aborted) return;
+                  const processedBlobUrl = dataUrlToBlobUrl(processed);
+                  setSkus((p) =>
+                    p.map((s) => {
+                      if (s.id !== id) return s;
+                      if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
+                      return { ...s, processedImage: processedBlobUrl, isProcessingImage: false };
+                    })
+                  );
+                })
+                .catch(() => {
+                  if (controller.signal.aborted) return;
+                  setSkus((p) =>
+                    p.map((s) => (s.id === id ? { ...s, isProcessingImage: false } : s))
+                  );
+                })
+                .finally(() => bgAbortMapRef.current.delete(id));
+            };
+            reader.readAsDataURL(blob);
+          });
+        return prev;
+      });
+    },
+    []
+  );
+
   const handleClear = () => {
     // Abort all in-flight BG removals
     for (const ctrl of bgAbortMapRef.current.values()) ctrl.abort();
@@ -227,6 +287,8 @@ export default function Home() {
                 onUpdate={handleUpdate}
                 onImageSelected={handleImageSelected}
                 onRemove={handleRemove}
+                onClearImage={handleClearImage}
+                onRemoveBg={handleRemoveBgManual}
                 onReorder={handleReorder}
               />
             </div>
