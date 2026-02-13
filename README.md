@@ -31,6 +31,31 @@ npm run test
 npm run build
 ```
 
+## Architecture
+
+```mermaid
+flowchart LR
+  UI["Client UI (app/page.tsx)"] --> DI["DataInput + CardGrid + ExportControls"]
+  DI --> SKUS["In-memory SKU state"]
+  SKUS --> AS["Autosave (localStorage)"]
+  DI --> SI["POST /api/suggest-images"]
+  DI --> PI["POST /api/proxy-image"]
+  DI --> RB["POST /api/remove-bg"]
+  SI --> SERP["SerpAPI"]
+  PI --> IMG["Remote image host (HTTPS)"]
+  RB --> REMBG["remove.bg API"]
+```
+
+- Main client orchestrator: `/Users/gabrielmurray/dev/whyitshot/app/page.tsx`
+  - Owns SKU state, undo-clear behavior, background-removal toggles, and abort controllers for in-flight image processing.
+- Persistence:
+  - `/Users/gabrielmurray/dev/whyitshot/lib/use-autosave.ts` debounces saves.
+  - `/Users/gabrielmurray/dev/whyitshot/lib/storage.ts` stores only serializable SKU fields in `localStorage`.
+- API routes:
+  - `/Users/gabrielmurray/dev/whyitshot/app/api/suggest-images/route.ts`: queries SerpAPI and streams normalized thumbnails.
+  - `/Users/gabrielmurray/dev/whyitshot/app/api/proxy-image/route.ts`: validates/limits remote image fetches and returns safe image bytes.
+  - `/Users/gabrielmurray/dev/whyitshot/app/api/remove-bg/route.ts`: calls remove.bg with size checks and timeout/error mapping.
+
 ## Troubleshooting
 
 - `Image search not configured`:
