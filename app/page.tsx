@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { type SKU } from "@/types/sku";
 import { DataInput } from "@/components/data-input";
 import { CardGrid } from "@/components/card-grid";
@@ -22,6 +22,17 @@ export default function Home() {
   const bgAbortMapRef = useRef<Map<string, AbortController>>(new Map());
 
   useAutosave(skus);
+
+  useEffect(() => {
+    const abortMap = bgAbortMapRef.current;
+    return () => {
+      if (undoTimeoutRef.current) {
+        clearTimeout(undoTimeoutRef.current);
+      }
+      for (const ctrl of abortMap.values()) ctrl.abort();
+      abortMap.clear();
+    };
+  }, []);
 
   const handleAddSingle = useCallback((sku: SKU) => {
     setSkus((prev) => [...prev, sku]);
@@ -50,11 +61,6 @@ export default function Home() {
 
   const handleImageSelected = useCallback(
     async (id: string, dataUrl: string) => {
-      // Cancel any prior BG removal for this SKU
-      bgAbortMapRef.current.get(id)?.abort();
-      const controller = new AbortController();
-      bgAbortMapRef.current.set(id, controller);
-
       const blobUrl = dataUrlToBlobUrl(dataUrl);
 
       setSkus((prev) =>
@@ -65,7 +71,11 @@ export default function Home() {
         })
       );
 
+      // Cancel any prior BG removal for this SKU
+      bgAbortMapRef.current.get(id)?.abort();
       if (bgRemovalEnabled) {
+        const controller = new AbortController();
+        bgAbortMapRef.current.set(id, controller);
         try {
           const processed = await removeBg(dataUrl, controller.signal);
           if (controller.signal.aborted) return;
@@ -87,6 +97,8 @@ export default function Home() {
         } finally {
           bgAbortMapRef.current.delete(id);
         }
+      } else {
+        bgAbortMapRef.current.delete(id);
       }
     },
     [bgRemovalEnabled]
@@ -106,11 +118,18 @@ export default function Home() {
       lastClearedRef.current.forEach(revokeSkuImages);
       lastClearedRef.current = [];
       setShowUndo(false);
+      undoTimeoutRef.current = null;
     }, 5000);
   };
 
   const handleUndoClear = () => {
-    setSkus(lastClearedRef.current.map((s) => ({ ...s, isProcessingImage: false })));
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+      undoTimeoutRef.current = null;
+    }
+    const restored = lastClearedRef.current.map((s) => ({ ...s, isProcessingImage: false }));
+    lastClearedRef.current = [];
+    setSkus(restored);
     setShowUndo(false);
   };
 

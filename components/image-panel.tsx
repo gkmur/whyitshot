@@ -21,7 +21,16 @@ export function ImagePanel({ query, onImageSelected }: ImagePanelProps) {
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
 
   useEffect(() => {
-    if (query.length < 3) return;
+    if (query.length < 3) {
+      abortRef.current?.abort();
+      fullResAbortRef.current?.abort();
+      setSuggestions([]);
+      setLoading(false);
+      setError(null);
+      setVisibleCount(INITIAL_COUNT);
+      setLoadingIndex(null);
+      return;
+    }
 
     abortRef.current?.abort();
     fullResAbortRef.current?.abort();
