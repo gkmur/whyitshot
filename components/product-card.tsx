@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { type SKU, percentOff, formatPrice } from "@/types/sku";
+import { type SKU, type ImageCrop, percentOff, formatPrice } from "@/types/sku";
 import { ImageDropzone } from "./image-dropzone";
 import { ImagePanel } from "./image-panel";
 
@@ -108,7 +108,13 @@ export const ProductCard = React.memo(function ProductCard({
             onImageSelected(sku.id, dataUrl);
             setShowSearch(false);
           }}
+          crop={sku.imageCrop}
+          onCropChange={(crop: ImageCrop) => onUpdate(sku.id, { imageCrop: crop })}
         />
+
+        {sku.imageError && (
+          <p className="text-[10px] text-red-400 text-center">{sku.imageError}</p>
+        )}
 
         {hasImage && (
           <div className="flex items-center gap-1.5">
@@ -126,6 +132,17 @@ export const ProductCard = React.memo(function ProductCard({
                   className="text-[10px] text-gray-400 hover:text-accent transition-colors"
                 >
                   Remove bg
+                </button>
+                <span className="text-gray-200">·</span>
+              </>
+            )}
+            {sku.imageCrop && sku.imageCrop.zoom > 1 && (
+              <>
+                <button
+                  onClick={() => onUpdate(sku.id, { imageCrop: undefined })}
+                  className="text-[10px] text-gray-400 hover:text-accent transition-colors"
+                >
+                  Reset crop
                 </button>
                 <span className="text-gray-200">·</span>
               </>

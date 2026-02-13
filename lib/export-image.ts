@@ -20,10 +20,15 @@ function buildExportHTML(skus: SKU[]): HTMLDivElement {
     if (imgSrc) {
       const imgWrap = document.createElement("div");
       imgWrap.style.cssText =
-        "width:160px;height:160px;display:flex;align-items:center;justify-content:center;flex-shrink:0;";
+        "width:160px;height:160px;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden;";
       const img = document.createElement("img");
       img.src = imgSrc;
-      img.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;";
+      const crop = sku.imageCrop;
+      if (crop && crop.zoom > 1) {
+        img.style.cssText = `max-width:100%;max-height:100%;object-fit:contain;transform:scale(${crop.zoom}) translate(${crop.x}%,${crop.y}%);transform-origin:center center;`;
+      } else {
+        img.style.cssText = "max-width:100%;max-height:100%;object-fit:contain;";
+      }
       imgWrap.appendChild(img);
       card.appendChild(imgWrap);
     } else {

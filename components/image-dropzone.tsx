@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { type ImageCrop, DEFAULT_CROP } from "@/types/sku";
 
 interface ImageDropzoneProps {
   image?: string;
   isProcessing?: boolean;
   onImageSelected: (dataUrl: string) => void;
   compact?: boolean;
+  crop?: ImageCrop;
+  onCropChange?: (crop: ImageCrop) => void;
 }
 
 function isUrl(text: string): boolean {
@@ -40,11 +43,18 @@ export function ImageDropzone({
   isProcessing,
   onImageSelected,
   compact,
+  crop,
+  onCropChange,
 }: ImageDropzoneProps) {
   const sizeClass = compact ? "h-28" : "aspect-square";
   const [isDragging, setIsDragging] = useState(false);
   const [urlLoading, setUrlLoading] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef<{ x: number; y: number; cropX: number; cropY: number } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const activeCrop = crop ?? DEFAULT_CROP;
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
@@ -127,27 +137,99 @@ export function ImageDropzone({
     );
   }
 
+  const handleWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!onCropChange) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const delta = e.deltaY > 0 ? -0.1 : 0.1;
+      const newZoom = Math.max(1, Math.min(4, activeCrop.zoom + delta));
+      // When zooming out, pull position back toward center
+      const maxPan = ((newZoom - 1) / newZoom) * 50;
+      const newX = Math.max(-maxPan, Math.min(maxPan, activeCrop.x));
+      const newY = Math.max(-maxPan, Math.min(maxPan, activeCrop.y));
+      onCropChange({ zoom: newZoom, x: newX, y: newY });
+    },
+    [activeCrop, onCropChange]
+  );
+
+  const handlePanStart = useCallback(
+    (e: React.PointerEvent) => {
+      if (!onCropChange || activeCrop.zoom <= 1) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setIsPanning(true);
+      panStartRef.current = { x: e.clientX, y: e.clientY, cropX: activeCrop.x, cropY: activeCrop.y };
+      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    },
+    [activeCrop, onCropChange]
+  );
+
+  const handlePanMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (!isPanning || !panStartRef.current || !onCropChange || !containerRef.current) return;
+      const rect = containerRef.current.getBoundingClientRect();
+      const dx = ((e.clientX - panStartRef.current.x) / rect.width) * 100;
+      const dy = ((e.clientY - panStartRef.current.y) / rect.height) * 100;
+      const maxPan = ((activeCrop.zoom - 1) / activeCrop.zoom) * 50;
+      const newX = Math.max(-maxPan, Math.min(maxPan, panStartRef.current.cropX + dx));
+      const newY = Math.max(-maxPan, Math.min(maxPan, panStartRef.current.cropY + dy));
+      onCropChange({ zoom: activeCrop.zoom, x: newX, y: newY });
+    },
+    [isPanning, activeCrop.zoom, onCropChange]
+  );
+
+  const handlePanEnd = useCallback(() => {
+    setIsPanning(false);
+    panStartRef.current = null;
+  }, []);
+
   if (image) {
+    const isZoomed = activeCrop.zoom > 1;
     return (
       <div
-        className={`${sizeClass} bg-white flex items-center justify-center rounded-lg relative group cursor-pointer overflow-hidden`}
+        ref={containerRef}
+        className={`${sizeClass} bg-white flex items-center justify-center rounded-lg relative group overflow-hidden ${
+          isZoomed ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"
+        }`}
         onDrop={handleDrop}
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onPaste={handlePaste}
+        onWheel={handleWheel}
+        onPointerDown={isZoomed ? handlePanStart : undefined}
+        onPointerMove={isPanning ? handlePanMove : undefined}
+        onPointerUp={isPanning ? handlePanEnd : undefined}
+        onPointerCancel={isPanning ? handlePanEnd : undefined}
         tabIndex={0}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={image} alt="Product" className="max-w-full max-h-full object-contain p-2" />
-        <label className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
-          <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Replace</span>
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
-          />
-        </label>
+        <img
+          src={image}
+          alt="Product"
+          className="max-w-full max-h-full object-contain p-2 select-none pointer-events-none"
+          draggable={false}
+          style={{
+            transform: `scale(${activeCrop.zoom}) translate(${activeCrop.x}%, ${activeCrop.y}%)`,
+            transformOrigin: "center center",
+          }}
+        />
+        {!isPanning && !isZoomed && (
+          <label className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
+            <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Replace</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const file = e.target.files?.[0]; if (file) handleFile(file); }}
+            />
+          </label>
+        )}
+        {isZoomed && (
+          <div className="absolute top-1 right-1 bg-black/50 text-white text-[9px] px-1.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+            {Math.round(activeCrop.zoom * 100)}%
+          </div>
+        )}
       </div>
     );
   }

@@ -62,7 +62,7 @@ export default function Home() {
         prev.map((s) => {
           if (s.id !== id) return s;
           if (s.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(s.imageUrl);
-          return { ...s, imageUrl: blobUrl, isProcessingImage: bgRemovalEnabled };
+          return { ...s, imageUrl: blobUrl, isProcessingImage: bgRemovalEnabled, imageCrop: undefined, imageError: undefined };
         })
       );
 
@@ -75,14 +75,15 @@ export default function Home() {
             prev.map((s) => {
               if (s.id !== id) return s;
               if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
-              return { ...s, processedImage: processedBlobUrl, isProcessingImage: false };
+              return { ...s, processedImage: processedBlobUrl, isProcessingImage: false, imageError: undefined };
             })
           );
-        } catch {
+        } catch (err) {
           if (controller.signal.aborted) return;
+          const msg = err instanceof Error ? err.message : "BG removal failed";
           setSkus((prev) =>
             prev.map((s) =>
-              s.id === id ? { ...s, isProcessingImage: false } : s
+              s.id === id ? { ...s, isProcessingImage: false, imageError: msg } : s
             )
           );
         } finally {
@@ -102,7 +103,7 @@ export default function Home() {
         if (s.id !== id) return s;
         if (s.imageUrl?.startsWith("blob:")) URL.revokeObjectURL(s.imageUrl);
         if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
-        return { ...s, imageUrl: undefined, processedImage: undefined, isProcessingImage: false };
+        return { ...s, imageUrl: undefined, processedImage: undefined, isProcessingImage: false, imageCrop: undefined, imageError: undefined };
       })
     );
   }, []);
@@ -134,14 +135,15 @@ export default function Home() {
                     p.map((s) => {
                       if (s.id !== id) return s;
                       if (s.processedImage?.startsWith("blob:")) URL.revokeObjectURL(s.processedImage);
-                      return { ...s, processedImage: processedBlobUrl, isProcessingImage: false };
+                      return { ...s, processedImage: processedBlobUrl, isProcessingImage: false, imageError: undefined };
                     })
                   );
                 })
-                .catch(() => {
+                .catch((err) => {
                   if (controller.signal.aborted) return;
+                  const msg = err instanceof Error ? err.message : "BG removal failed";
                   setSkus((p) =>
-                    p.map((s) => (s.id === id ? { ...s, isProcessingImage: false } : s))
+                    p.map((s) => (s.id === id ? { ...s, isProcessingImage: false, imageError: msg } : s))
                   );
                 })
                 .finally(() => bgAbortMapRef.current.delete(id));
