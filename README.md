@@ -84,3 +84,16 @@ flowchart LR
   - Retry the action; upstream providers or remote image hosts may be slow/unavailable.
 - Cloudflare deploy auth error `code: 10000`:
   - See `/Users/gabrielmurray/dev/whyitshot/docs/solutions/deployment-errors/cloudflare-auth-token-precedence-20260211.md`.
+
+## Known Limits / Future Improvements
+
+- External dependency variance:
+  - Image suggestion and background removal depend on third-party APIs, so latency/availability can vary.
+- Local-only persistence:
+  - Data is stored in browser `localStorage`; there is no cross-device sync or user account storage yet.
+- Test coverage scope:
+  - Current automated tests are focused on API hardening paths. UI interaction flows are validated manually.
+- CI scope:
+  - CI currently runs `lint`, `test`, and `build`; deployment checks are not automated yet.
+- Security expansion opportunities:
+  - Additional SSRF protections (DNS/rebinding guardrails) and stricter upstream domain allowlists can be added later if needed.
