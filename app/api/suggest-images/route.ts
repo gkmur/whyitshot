@@ -19,6 +19,19 @@ interface SerpImageResult {
   title?: string;
 }
 
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer);
+  const chunkSize = 0x8000;
+  let binary = "";
+
+  for (let i = 0; i < bytes.length; i += chunkSize) {
+    const chunk = bytes.subarray(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+
+  return btoa(binary);
+}
+
 function sanitizeTitle(raw: string): string {
   return raw
     .replace(/&amp;/g, "&")
@@ -44,7 +57,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const body: unknown = await req.json();
+  const body: unknown = await req.json().catch(() => null);
   if (
     !body ||
     typeof body !== "object" ||
@@ -66,17 +79,28 @@ export async function POST(req: Request) {
   url.searchParams.set("q", query);
   url.searchParams.set("api_key", apiKey);
 
-  const serpRes = await fetch(url.toString(), {
-    signal: AbortSignal.timeout(10000),
-  });
-  if (!serpRes.ok) {
+  let results: SerpImageResult[] = [];
+  try {
+    const serpRes = await fetch(url.toString(), {
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!serpRes.ok) {
+      return Response.json({ error: "Search failed" }, { status: 502 });
+    }
+
+    const data: unknown = await serpRes.json().catch(() => null);
+    results = (
+      (data as { images_results?: SerpImageResult[] } | null)?.images_results ?? []
+    ).slice(0, OVERFETCH_COUNT);
+  } catch (err) {
+    if (
+      err instanceof DOMException &&
+      (err.name === "AbortError" || err.name === "TimeoutError")
+    ) {
+      return Response.json({ error: "Search timed out" }, { status: 504 });
+    }
     return Response.json({ error: "Search failed" }, { status: 502 });
   }
-
-  const data = await serpRes.json();
-  const results: SerpImageResult[] = (
-    (data as { images_results?: SerpImageResult[] }).images_results ?? []
-  ).slice(0, OVERFETCH_COUNT);
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -85,9 +109,10 @@ export async function POST(req: Request) {
       const queue = [...results];
 
       const workers = Array.from({ length: CONCURRENCY }, async () => {
-        while (queue.length > 0 && sent < TARGET_COUNT) {
+        while (queue.length > 0 && sent < TARGET_COUNT && !req.signal.aborted) {
           const r = queue.shift();
           if (!r) break;
+          if (!r.thumbnail) continue;
           try {
             const imgRes = await fetch(r.thumbnail, {
               signal: AbortSignal.timeout(3000),
@@ -105,7 +130,7 @@ export async function POST(req: Request) {
             if (buffer.byteLength > MAX_THUMBNAIL_BYTES || sent >= TARGET_COUNT)
               continue;
 
-            const base64 = Buffer.from(buffer).toString("base64");
+            const base64 = arrayBufferToBase64(buffer);
             sent++;
             controller.enqueue(
               encoder.encode(
@@ -123,7 +148,9 @@ export async function POST(req: Request) {
       });
 
       await Promise.allSettled(workers);
-      controller.close();
+      if (!req.signal.aborted) {
+        controller.close();
+      }
     },
   });
 
