@@ -31,6 +31,23 @@ npm run test
 npm run build
 ```
 
+## Solo Release Checklist
+
+1. Pull latest and confirm branch is `main`.
+2. Run local verification:
+   - `npm run lint`
+   - `npm run test`
+   - `npm run build`
+3. Commit directly to `main` with a focused message.
+4. Push and confirm GitHub Actions CI is green.
+5. If deploying to Cloudflare, run:
+   - `npm run deploy`
+6. Open the live app and do a quick smoke test:
+   - add/edit/remove SKU
+   - image suggestion and image paste URL
+   - export preview + download/copy
+7. If a regression appears, revert quickly with a follow-up commit on `main`.
+
 ## Architecture
 
 ```mermaid
