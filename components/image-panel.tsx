@@ -88,7 +88,9 @@ export function ImagePanel({ query, onImageSelected }: ImagePanelProps) {
         console.error("suggest-images error:", e);
         setError("Couldn't load suggestions");
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     })();
 

@@ -98,7 +98,9 @@ export function ImageDropzone({
         } catch (err) {
           if (err instanceof DOMException && err.name === "AbortError") return;
         } finally {
-          setUrlLoading(false);
+          if (abortRef.current === controller) {
+            setUrlLoading(false);
+          }
         }
       }
     },
