@@ -3,6 +3,44 @@ import { checkOrigin, rateLimit } from "@/lib/rate-limit";
 const ALLOWED_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
 const MAX_BYTES = 2_000_000;
 
+class PayloadTooLargeError extends Error {}
+
+function isAbortLikeError(err: unknown): boolean {
+  return (
+    err instanceof DOMException &&
+    (err.name === "AbortError" || err.name === "TimeoutError")
+  );
+}
+
+async function readBodyWithLimit(res: Response, maxBytes: number): Promise<ArrayBuffer> {
+  const reader = res.body?.getReader();
+  if (!reader) return new ArrayBuffer(0);
+
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new PayloadTooLargeError("Image too large");
+    }
+    chunks.push(value);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return merged.buffer;
+}
+
 function validateProxyUrl(rawUrl: string): URL | null {
   let url: URL;
   try {
@@ -12,6 +50,7 @@ function validateProxyUrl(rawUrl: string): URL | null {
   }
 
   if (url.protocol !== "https:") return null;
+  if (url.username || url.password) return null;
   if (/^\d{1,3}(\.\d{1,3}){3}$/.test(url.hostname)) return null;
   if (url.hostname.startsWith("[")) return null;
 
@@ -53,15 +92,12 @@ export async function POST(req: Request) {
       return Response.json({ error: "Not an image" }, { status: 400 });
     }
 
-    const contentLength = res.headers.get("content-length");
-    if (contentLength && parseInt(contentLength, 10) > MAX_BYTES) {
+    const contentLength = Number(res.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > MAX_BYTES) {
       return Response.json({ error: "Image too large" }, { status: 413 });
     }
 
-    const buffer = await res.arrayBuffer();
-    if (buffer.byteLength > MAX_BYTES) {
-      return Response.json({ error: "Image too large" }, { status: 413 });
-    }
+    const buffer = await readBodyWithLimit(res, MAX_BYTES);
 
     return new Response(buffer, {
       headers: {
@@ -69,7 +105,13 @@ export async function POST(req: Request) {
         "Cache-Control": "public, max-age=3600",
       },
     });
-  } catch {
+  } catch (err) {
+    if (err instanceof PayloadTooLargeError) {
+      return Response.json({ error: "Image too large" }, { status: 413 });
+    }
+    if (isAbortLikeError(err)) {
+      return Response.json({ error: "Fetch timed out" }, { status: 504 });
+    }
     return Response.json({ error: "Fetch failed" }, { status: 502 });
   }
 }

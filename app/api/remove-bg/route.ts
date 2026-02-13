@@ -2,6 +2,13 @@ import { checkOrigin, rateLimit } from "@/lib/rate-limit";
 
 const REMOVEBG_URL = "https://api.remove.bg/v1.0/removebg";
 
+function isAbortLikeError(err: unknown): boolean {
+  return (
+    err instanceof DOMException &&
+    (err.name === "AbortError" || err.name === "TimeoutError")
+  );
+}
+
 export async function POST(req: Request) {
   const forbidden = checkOrigin(req);
   if (forbidden) return forbidden;
@@ -17,7 +24,10 @@ export async function POST(req: Request) {
     return Response.json({ error: "Missing image_b64" }, { status: 400 });
   }
 
-  const raw = (body as { image_b64: string }).image_b64.replace(/^data:image\/\w+;base64,/, "");
+  const raw = (body as { image_b64: string }).image_b64.replace(
+    /^data:image\/[a-z0-9.+-]+;base64,/i,
+    ""
+  );
 
   if ((raw.length * 3) / 4 > 12_000_000) {
     return Response.json({ error: "Image too large" }, { status: 413 });
@@ -54,9 +64,17 @@ export async function POST(req: Request) {
       );
     }
 
-    const data = await res.json();
-    return Response.json({ result_b64: `data:image/png;base64,${(data as { data: { result_b64: string } }).data.result_b64}` });
-  } catch {
-    return Response.json({ error: "Background removal timed out" }, { status: 504 });
+    const data: unknown = await res.json().catch(() => null);
+    const result = (data as { data?: { result_b64?: unknown } } | null)?.data?.result_b64;
+    if (typeof result !== "string" || result.length === 0) {
+      return Response.json({ error: "Background removal failed" }, { status: 502 });
+    }
+
+    return Response.json({ result_b64: `data:image/png;base64,${result}` });
+  } catch (err) {
+    if (isAbortLikeError(err)) {
+      return Response.json({ error: "Background removal timed out" }, { status: 504 });
+    }
+    return Response.json({ error: "Background removal failed" }, { status: 502 });
   }
 }
