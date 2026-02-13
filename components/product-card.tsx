@@ -77,7 +77,9 @@ export const ProductCard = React.memo(function ProductCard({
   return (
     <div className="relative group">
       <button
+        type="button"
         onClick={() => onRemove(sku.id)}
+        aria-label={`Remove ${sku.name || "SKU"}`}
         className="absolute -top-2 -right-2 z-10 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
         title="Remove SKU"
       >
@@ -86,7 +88,9 @@ export const ProductCard = React.memo(function ProductCard({
 
       {!hasImage && !showSearch && sku.name.length >= 3 && (
         <button
+          type="button"
           onClick={() => setShowSearch(true)}
+          aria-label={`Search image for ${sku.name || "SKU"}`}
           className="absolute -top-2 -left-2 z-10 w-5 h-5 bg-accent text-white rounded-full text-[9px] flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent-hover"
           title="Search for image"
         >

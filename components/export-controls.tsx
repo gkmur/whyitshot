@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type SKU } from "@/types/sku";
 import { exportToPng, copyToClipboard, generatePreview } from "@/lib/export-image";
 
@@ -15,6 +15,7 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
   const [downloading, setDownloading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [previewAction, setPreviewAction] = useState<"download" | "copy" | null>(null);
+  const copiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isProcessing = skus.some((s) => s.isProcessingImage);
   const isDisabled = disabled || isProcessing;
@@ -39,6 +40,14 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
       window.removeEventListener("keydown", onKeyDown);
     };
   }, [preview]);
+
+  useEffect(() => {
+    return () => {
+      if (copiedTimeoutRef.current) {
+        clearTimeout(copiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handlePreview = async (action: "download" | "copy") => {
     setPreviewAction(action);
@@ -66,7 +75,13 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
       try {
         await copyToClipboard(skus);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
+        if (copiedTimeoutRef.current) {
+          clearTimeout(copiedTimeoutRef.current);
+        }
+        copiedTimeoutRef.current = setTimeout(() => {
+          setCopied(false);
+          copiedTimeoutRef.current = null;
+        }, 2000);
       } catch (err) {
         console.error("Copy failed:", err);
       }
@@ -86,6 +101,7 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
       <div className="fixed bottom-0 left-0 right-0 z-40 bg-white/90 backdrop-blur-sm border-t border-gray-200">
         <div className="max-w-5xl mx-auto px-6 py-3 flex gap-3">
           <button
+            type="button"
             onClick={() => handlePreview("download")}
             disabled={isDisabled || downloading}
             className="flex-1 py-2.5 bg-accent text-white rounded-xl text-sm font-medium hover:bg-accent-hover disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
@@ -100,6 +116,7 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
             Download PNG
           </button>
           <button
+            type="button"
             onClick={() => handlePreview("copy")}
             disabled={isDisabled || copying}
             className="flex-1 py-2.5 border border-gray-200 bg-white text-gray-700 rounded-xl text-sm font-medium hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center justify-center gap-2"
@@ -138,15 +155,16 @@ export function ExportControls({ skus, disabled }: ExportControlsProps) {
           <div className="bg-white rounded-2xl shadow-2xl max-w-3xl max-h-[80vh] overflow-auto p-6 space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-gray-700">Export Preview</h3>
-              <button onClick={handleDismiss} className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
+              <button type="button" onClick={handleDismiss} aria-label="Close export preview" className="text-gray-400 hover:text-gray-600 text-lg">&times;</button>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={preview} alt="Export preview" className="w-full rounded-lg border border-gray-100" />
             <div className="flex gap-3 justify-end">
-              <button onClick={handleDismiss} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
+              <button type="button" onClick={handleDismiss} className="px-4 py-2 text-sm text-gray-500 hover:text-gray-700 transition-colors">
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirm}
                 disabled={!previewAction || isConfirming}
                 className="px-5 py-2 bg-accent text-white rounded-lg text-sm font-medium hover:bg-accent-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"

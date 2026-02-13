@@ -177,6 +177,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             {showUndo && (
               <button
+                type="button"
                 onClick={handleUndoClear}
                 className="text-xs text-accent hover:text-accent-hover transition-colors font-medium"
               >
@@ -185,6 +186,7 @@ export default function Home() {
             )}
             {skus.length > 0 && (
               <button
+                type="button"
                 onClick={handleClear}
                 className="text-xs text-gray-400 hover:text-red-500 transition-colors"
               >
@@ -263,6 +265,7 @@ export default function Home() {
                 Add a product above, or
               </p>
               <button
+                type="button"
                 onClick={handleLoadSamples}
                 disabled={loadingSamples}
                 className="text-sm text-accent hover:text-accent-hover font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

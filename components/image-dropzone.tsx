@@ -45,6 +45,8 @@ export function ImageDropzone({
   const [isDragging, setIsDragging] = useState(false);
   const [urlLoading, setUrlLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const emptyInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     return () => { abortRef.current?.abort(); };
@@ -107,6 +109,20 @@ export function ImageDropzone({
     [handleFile, onImageSelected]
   );
 
+  const handleImageKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      imageInputRef.current?.click();
+    }
+  }, []);
+
+  const handleEmptyKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      emptyInputRef.current?.click();
+    }
+  }, []);
+
   if (isProcessing) {
     return (
       <div className={`${sizeClass} bg-gray-50 flex items-center justify-center rounded-lg`}>
@@ -137,13 +153,17 @@ export function ImageDropzone({
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onPaste={handlePaste}
+        onKeyDown={handleImageKeyDown}
         tabIndex={0}
+        role="button"
+        aria-label="Replace product image"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={image} alt="Product" className="max-w-full max-h-full object-contain p-2" />
         <label className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer">
           <span className="text-white text-xs font-medium bg-black/60 px-2 py-1 rounded">Replace</span>
           <input
+            ref={imageInputRef}
             type="file"
             accept="image/*"
             className="hidden"
@@ -165,7 +185,10 @@ export function ImageDropzone({
       onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
       onDragLeave={() => setIsDragging(false)}
       onPaste={handlePaste}
+      onKeyDown={handleEmptyKeyDown}
       tabIndex={0}
+      role="button"
+      aria-label="Add product image"
     >
       <div className="text-center px-2">
         <svg
@@ -181,6 +204,7 @@ export function ImageDropzone({
         </span>
       </div>
       <input
+        ref={emptyInputRef}
         type="file"
         accept="image/*"
         className="hidden"
